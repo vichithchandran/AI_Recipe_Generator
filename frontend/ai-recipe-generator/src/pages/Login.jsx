@@ -1,7 +1,31 @@
 import { ChefHat, Mail } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { loading, setLoading } = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const result = await login(email, password);
+
+    if (result.success) {
+      toast.success("Welcome back!");
+      navigate("/dashboard");
+    } else {
+      toast.error(result.message);
+    }
+
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-emerald-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -18,7 +42,7 @@ const Login = () => {
 
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <form className="space-y-5">
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Email*/}
             <div>
               <label
@@ -34,6 +58,9 @@ const Login = () => {
                   id="email"
                   className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all "
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -52,6 +79,9 @@ const Login = () => {
                   id="password"
                   className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all "
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -59,7 +89,7 @@ const Login = () => {
             {/* Forgot Password*/}
             <div className="flex items-center justify-end">
               <Link
-                to=""
+                to="/reset-password"
                 className=" text-sm text-emerald-600 hover:text-emerald-700 font-medium"
               >
                 Forgot password?
@@ -69,9 +99,10 @@ const Login = () => {
             {/* Submit Button*/}
             <button
               type="submit"
+              disabled={loading}
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
