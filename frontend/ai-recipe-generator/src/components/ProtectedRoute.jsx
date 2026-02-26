@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const ProtectedRoute = ({ childern }) => {
+const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
@@ -15,7 +15,7 @@ const ProtectedRoute = ({ childern }) => {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  return childern;
+  return children;
 };
 
 export default ProtectedRoute;

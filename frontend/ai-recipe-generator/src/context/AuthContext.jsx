@@ -11,7 +11,7 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ childern }) => {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,12 +21,12 @@ export const AuthProvider = ({ childern }) => {
 
   const login = async (email, password) => {
     setUser(dummyUser);
-    return { suceess: true };
+    return { success: true };
   };
 
   const register = async (name, emai, password) => {
     setUser({ ...dummyUser, name });
-    return { suceess: true };
+    return { success: true };
   };
 
   const logout = () => {
@@ -42,5 +42,5 @@ export const AuthProvider = ({ childern }) => {
     isAuthenticated: !!user,
   };
 
-  return <AuthContext.Provider value={value}>{childern}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
