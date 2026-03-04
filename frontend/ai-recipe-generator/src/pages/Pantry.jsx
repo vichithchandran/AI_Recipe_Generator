@@ -1,0 +1,209 @@
+import { AlertCircle, Calendar, Plus, Search, X } from "lucide-react"
+import Navbar from "../components/Navbar"
+import { useEffect, useState } from "react"
+import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+import { dummyPantryItems, getExpiringItems } from "../data/dummyData"
+
+const CATEGORIES = ['Vegetables', 'Fruits', 'Dairy', 'Meat', 'Grains', 'Spices', 'Other'];
+
+const Pantry = () => {
+    const [items, setItems] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [expiringItems, setExpiringItems] = useState([])
+    const [selectedCategory, setSelectedCategory] = useState('All')
+    const [filteredItems, setFilteredItems] = useState([])
+
+    useEffect(() => {
+        setItems(dummyPantryItems);
+        setExpiringItems(getExpiringItems());
+    }, []);
+
+    useEffect(() => {
+        filterItems();
+    }, [items, searchQuery, selectedCategory]);
+
+    const filterItems = () => {
+        let filtered = items;
+
+        if (searchQuery) {
+            filtered = filtered.filter(item =>
+                item.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        if (selectedCategory !== 'All') {
+            filtered = filtered.filter(item => item.category === selectedCategory);
+        }
+
+        setFilteredItems(filtered);
+    };
+
+    const handleDelete = (id) => {
+        if (!confirm('Are you sure you want to delete this item?')) return;
+
+        setItems(items.filter(item => item.id !== id));
+        toast.success('Item deleted');
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold">Pantry</h1>
+                        <p className="text-gray-600 mt-1">
+                            Manage your ingredients and track expiry dates
+                        </p>
+                    </div>
+                    <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
+                        onClick={() => setShowAddModal(true)}
+                    >
+                        <Plus className="w-5 h-5" />
+                        Add Item
+                    </button>
+                </div>
+
+                {/* Expiring Soon Alert */}
+                {expiringItems.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                            <div >
+                                <h3 className="text-amber-900 font-medium">Items Expiring Soon</h3>
+                                <p className="text-sm text-amber-700 mt-1">
+                                    {expiringItems.length} item{expiringItems.length > 1 ? 's' : ""} expiring within 7 days
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Search and Filter */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+                    <div className="flex flex-col sm:flex-row gap-4">
+
+                        {/* Search */}
+                        <div className="flex-1 relative">
+                            <Search className="absolute w-5 h-5 left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search ingredients..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                            />
+                        </div>
+
+                        {/* Category Filter */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+                            <CategoryButton label="All" active={selectedCategory === 'All'} onClick={() => setSelectedCategory("All")} />
+                            {CATEGORIES.map(category => (
+                                <CategoryButton
+                                    key={category}
+                                    label={category}
+                                    active={selectedCategory === category}
+                                    onClick={() => { setSelectedCategory(category) }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+
+                {/* Items Grid */}
+                {filteredItems.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredItems.map(item => (
+                            <PantryItemCard
+                                key={item.id}
+                                item={item}
+                                onDelete={handleDelete}
+                                isExpiring={expiringItems.some(exp => exp.id === item.id)}
+                            />
+                        ))}
+
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                        <p className="text-gray-500">No items found</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Add Item Modal */}
+            {showAddModal && (
+                <AddItemModal
+                    onClose={setShowAddModal(false)}
+                    onSuccess={(newItem) => {
+                        setItems([...items, newItem])
+                        setExpiringItems(getExpiringItems())
+                    }}
+                />
+            )}
+
+
+        </div >
+    )
+}
+
+const CategoryButton = ({ label, active, onClick }) => {
+    <button
+        onClick={onClick}
+        className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+    >
+        {label}
+    </button >
+}
+
+const PantryItemCard = ({ item, onDelete, isExpiring }) => {
+    const isExpired = item.expiry_date && new Date(item.expiry_date) < new Date();
+
+    return (
+        <div className={`bg-white rounded-lg broder p-4 hover:shodow-md transition-shadow ${isExpired ? 'border-amber-300' : 'border-gray-200'} `}>
+            <div className="flex items-start justify-between mb-3">
+
+                <div className="flex-1">
+                    <h3 className=" text-grey-900">{item.name}</h3>
+                    <p className="text-sm text-gray-500 capitalize">{item.category}</p>
+                </div>
+
+                <button
+                    onClick={() => onDelete(item.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Quantity:</span>
+                    <span className="font-medium text-gray-900">{item.quantity} {item.unit}</span>
+                </div>
+            </div>
+
+            {item.expiry_date && (
+                <div className="flex items-center gap-2 text-sm mt-2">
+                    <Calendar className="text-gray-400 2-4 h-4" />
+                    <span className={`${isExpired ? 'text-red-600 font-medium' : isExpiring ? 'text-amber-600 font-medium' : 'text-gray-600'}`}>
+                        {isExpired ? 'Expired' : 'Expires'}: {format(new Date(item.expiry_date), 'MMM dd, yyyy')}
+                    </span>
+                </div>
+            )}
+            {item.is_running_low && (
+                <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded mt-2">
+                    Running Low
+                </span>
+            )}
+        </div>
+    )
+}
+
+
+
+export default Pantry
