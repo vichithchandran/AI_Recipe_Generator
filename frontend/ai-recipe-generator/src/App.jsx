@@ -11,24 +11,23 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Pantry from "./pages/Pantry";
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Redirect root */}
+          <Route path="/" element={<Navigate to="/login" />} />
+
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
           {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /> </ProtectedRoute>}
           />
+          <Route path="/pantry" element={<ProtectedRoute><Pantry /></ProtectedRoute>} />
         </Routes>
       </Router>
 
