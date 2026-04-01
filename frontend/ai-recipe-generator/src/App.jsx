@@ -18,6 +18,7 @@ import RecipeDetail from "./pages/RecipeDetail";
 import ShoppingList from "./pages/ShoppingList";
 import Settings from "./pages/Settings";
 import MealPlanner from "./pages/MealPlanner";
+import SignUp from "./pages/SignUp";
 
 function App() {
   return (
