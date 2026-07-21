@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { ChefHat, Sparkles, Plus, X, Clock, Users } from "lucide-react";
+import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
-import { dummyPreferences, dummyGeneratedRecipe } from "../data/dummyData";
+import { recipeService } from "../services/recipeService";
+import { userService } from "../services/userService";
 
 const CUISINES = [
   "Any",
@@ -25,9 +26,9 @@ const DIETARY_OPTIONS = [
   "Paleo",
 ];
 const COOKING_TIMES = [
-  { value: "quick", label: "Quick (<30 min)" },
-  { value: "medium", label: "Medium (30-60 min)" },
-  { value: "long", label: "Long (>60 min)" },
+  { value: "quick", label: "Quick (<30m)" },
+  { value: "medium", label: "Medium (30-60m)" },
+  { value: "long", label: "Long (>60m)" },
 ];
 
 const RecipeGenerator = () => {
@@ -41,27 +42,29 @@ const RecipeGenerator = () => {
   const [generating, setGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
-  // Load user preferences on component mount
   useEffect(() => {
-    // Load dummy preferences
-    if (
-      dummyPreferences.dietary_restrictions &&
-      dummyPreferences.dietary_restrictions.length > 0
-    ) {
-      setDietaryRestrictions(dummyPreferences.dietary_restrictions);
-    }
-    if (
-      dummyPreferences.preferred_cuisines &&
-      dummyPreferences.preferred_cuisines.length > 0
-    ) {
-      setCuisineType(dummyPreferences.preferred_cuisines[0]);
-    }
-    if (dummyPreferences.default_servings) {
-      setServings(dummyPreferences.default_servings);
-    }
+    loadUserPreferences();
   }, []);
+
+  const loadUserPreferences = async () => {
+    try {
+      const res = await userService.getPreferences();
+      if (res.success && res.data) {
+        if (res.data.dietary_restrictions && res.data.dietary_restrictions.length > 0) {
+          setDietaryRestrictions(res.data.dietary_restrictions);
+        }
+        if (res.data.preferred_cuisines && res.data.preferred_cuisines.length > 0) {
+          setCuisineType(res.data.preferred_cuisines[0]);
+        }
+        if (res.data.default_servings) {
+          setServings(res.data.default_servings);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading preferences:", error);
+    }
+  };
 
   const addIngredient = () => {
     if (inputValue.trim() && !ingredients.includes(inputValue.trim())) {
@@ -82,105 +85,140 @@ const RecipeGenerator = () => {
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!usePantry && ingredients.length === 0) {
-      toast.error("Please add at least one ingredient or use pantry items");
+      toast.error("Please add at least one ingredient or check use pantry items");
       return;
     }
 
     setGenerating(true);
     setGeneratedRecipe(null);
 
-    // Simulate API delay
-    setTimeout(() => {
-      setGeneratedRecipe(dummyGeneratedRecipe);
-      toast.success("Recipe generated successfully!");
+    try {
+      const res = await recipeService.generateRecipe({
+        ingredients,
+        usePantry,
+        cuisineType,
+        dietaryRestrictions,
+        servings,
+        cookingTime,
+      });
+
+      if (res.success && res.data) {
+        setGeneratedRecipe(res.data);
+        toast.success("AI Recipe generated successfully!");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to generate recipe");
+    } finally {
       setGenerating(false);
-    }, 1500);
+    }
   };
 
-  const handleSaveRecipe = () => {
+  const handleSaveRecipe = async () => {
     if (!generatedRecipe) return;
 
-    // UI-only save (no API call)
-    toast.success("Recipe saved to your collection!");
+    setSaving(true);
+    try {
+      const recipePayload = {
+        name: generatedRecipe.name,
+        description: generatedRecipe.description || "",
+        cuisine_type: generatedRecipe.cuisineType || generatedRecipe.cuisine_type || "Other",
+        difficulty: generatedRecipe.difficulty || "medium",
+        prep_time: generatedRecipe.prepTime || generatedRecipe.prep_time || 0,
+        cook_time: generatedRecipe.cookTime || generatedRecipe.cook_time || 0,
+        servings: generatedRecipe.servings || 4,
+        ingredients: generatedRecipe.ingredients || [],
+        instructions: generatedRecipe.instructions || [],
+        dietary_tags: generatedRecipe.dietaryTags || generatedRecipe.dietary_tags || [],
+        nutrition: generatedRecipe.nutrition || {},
+        cooking_tips: generatedRecipe.cookingTips || generatedRecipe.cooking_tips || [],
+      };
+
+      const res = await recipeService.createRecipe(recipePayload);
+      if (res.success) {
+        toast.success("Recipe saved to your collection!");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save recipe");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-12">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-2xl mb-4">
-            <Sparkles className="w-8 h-8 text-white" />
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
+            <Wand2 className="w-8 h-8 text-slate-950" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            AI Recipe Generator
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-heading">
+            AI Recipe <span className="text-gradient">Generator</span>
           </h1>
-          <p className="text-gray-600 mt-2">
-            Let AI create delicious recipes based on your ingredients
+          <p className="text-slate-400 text-sm mt-2">
+            Input available ingredients or pull from your pantry — our AI will create a safe, delicious, custom recipe.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Section */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Ingredients
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Input & Parameters Column */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Ingredient Builder Card */}
+            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
+              <h2 className="text-base font-bold text-white mb-4 font-heading flex items-center gap-2">
+                <ChefHat className="w-5 h-5 text-emerald-400" />
+                <span>Ingredients</span>
               </h2>
 
               {/* Use Pantry Toggle */}
-              <div className="flex items-center gap-3 mb-4 p-3 bg-emerald-50 rounded-lg">
+              <label className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 cursor-pointer mb-4 hover:bg-emerald-500/15 transition-colors">
                 <input
                   type="checkbox"
-                  id="use-pantry"
                   checked={usePantry}
                   onChange={(e) => setUsePantry(e.target.checked)}
-                  className="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-500"
+                  className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500"
                 />
-                <label
-                  htmlFor="use-pantry"
-                  className="text-sm font-medium text-emerald-900"
-                >
-                  Use ingredients from my pantry
-                </label>
-              </div>
+                <span className="text-xs font-bold text-emerald-300">
+                  Include active non-expired pantry items
+                </span>
+              </label>
 
-              {/* Manual Ingredient Input */}
+              {/* Add Ingredient Input */}
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && addIngredient()}
-                  placeholder="Add ingredient (e.g., tomatoes)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  placeholder="Type ingredient (e.g. Tomatoes)"
+                  className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs"
                 />
                 <button
                   onClick={addIngredient}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition-all text-xs flex items-center justify-center"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Ingredient Tags */}
+              {/* Ingredient Badges */}
               {ingredients.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {ingredients.map((ingredient, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 border border-slate-800 text-slate-200 rounded-lg text-xs font-medium"
                     >
                       {ingredient}
                       <button
                         onClick={() => removeIngredient(ingredient)}
-                        className="hover:text-red-600 transition-colors"
+                        className="text-slate-500 hover:text-red-400 transition-colors"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
                   ))}
@@ -188,21 +226,19 @@ const RecipeGenerator = () => {
               )}
             </div>
 
-            {/* Preferences */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Preferences
-              </h2>
+            {/* Custom Preferences Card */}
+            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 space-y-5">
+              <h2 className="text-base font-bold text-white font-heading">Preferences</h2>
 
-              {/* Cuisine Type */}
+              {/* Cuisine Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cuisine Type
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Cuisine Style
                 </label>
                 <select
                   value={cuisineType}
                   onChange={(e) => setCuisineType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-xs"
                 >
                   {CUISINES.map((cuisine) => (
                     <option key={cuisine} value={cuisine}>
@@ -212,20 +248,21 @@ const RecipeGenerator = () => {
                 </select>
               </div>
 
-              {/* Dietary Restrictions */}
+              {/* Dietary Tags */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                   Dietary Restrictions
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {DIETARY_OPTIONS.map((option) => (
                     <button
                       key={option}
+                      type="button"
                       onClick={() => toggleDietary(option)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                         dietaryRestrictions.includes(option)
-                          ? "bg-emerald-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200"
                       }`}
                     >
                       {option}
@@ -236,37 +273,35 @@ const RecipeGenerator = () => {
 
               {/* Servings */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Servings: {servings}
-                </label>
+                <div className="flex justify-between text-xs font-semibold text-slate-400 mb-2">
+                  <span>Servings</span>
+                  <span className="text-emerald-400 font-bold">{servings} people</span>
+                </div>
                 <input
                   type="range"
                   min="1"
                   max="12"
                   value={servings}
                   onChange={(e) => setServings(parseInt(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  className="w-full h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>1</span>
-                  <span>12</span>
-                </div>
               </div>
 
               {/* Cooking Time */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cooking Time
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Cook Time
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {COOKING_TIMES.map((time) => (
                     <button
                       key={time.value}
+                      type="button"
                       onClick={() => setCookingTime(time.value)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-2.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                         cookingTime === time.value
-                          ? "bg-emerald-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200"
                       }`}
                     >
                       {time.label}
@@ -276,179 +311,130 @@ const RecipeGenerator = () => {
               </div>
             </div>
 
-            {/* Generate Button */}
+            {/* Action Button */}
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
               {generating ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Generating Recipe...
+                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Chef AI is Cooking...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Generate Recipe
+                  <span>Generate AI Recipe</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Results Section */}
-          <div>
+          {/* Generated Recipe Output Column */}
+          <div className="lg:col-span-7">
             {generatedRecipe ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-                {/* Recipe Header */}
+              <div className="glass-panel rounded-3xl p-8 border border-slate-800/80 shadow-2xl space-y-6 animate-fade-in">
+                {/* Title & Header */}
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {generatedRecipe.name}
-                  </h2>
-                  <p className="text-gray-600">{generatedRecipe.description}</p>
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
-                      {generatedRecipe.cuisineType}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-semibold">
+                      {generatedRecipe.cuisineType || generatedRecipe.cuisine_type}
                     </span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium capitalize">
+                    <span className="px-3 py-1 bg-blue-500/15 border border-blue-500/30 text-blue-400 rounded-full text-xs font-semibold capitalize">
                       {generatedRecipe.difficulty}
                     </span>
-                    {generatedRecipe.dietaryTags?.map((tag) => (
+                    {(generatedRecipe.dietaryTags || generatedRecipe.dietary_tags)?.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                        className="px-3 py-1 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-full text-xs font-semibold"
                       >
                         {tag}
                       </span>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-6 mt-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-white font-heading">
+                    {generatedRecipe.name}
+                  </h2>
+                  <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+                    {generatedRecipe.description}
+                  </p>
+
+                  <div className="flex items-center gap-6 mt-4 pt-4 border-t border-slate-800/80 text-xs font-medium text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-emerald-400" />
                       <span>
-                        {generatedRecipe.prepTime + generatedRecipe.cookTime}{" "}
-                        mins
+                        {(generatedRecipe.prepTime || generatedRecipe.prep_time || 0) +
+                          (generatedRecipe.cookTime || generatedRecipe.cook_time || 0)}{" "}
+                        mins total
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-emerald-400" />
                       <span>{generatedRecipe.servings} servings</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Ingredients */}
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Ingredients
+                <div className="bg-slate-900/60 rounded-2xl p-5 border border-slate-800/80">
+                  <h3 className="font-bold text-white text-sm mb-3 font-heading flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span>Required Ingredients</span>
                   </h3>
-                  <ul className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
                     {generatedRecipe.ingredients?.map((ing, index) => (
-                      <li
-                        key={index}
-                        className="flex items-center gap-2 text-gray-700"
-                      >
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                        {ing.quantity} {ing.unit} {ing.name}
-                      </li>
+                      <div key={index} className="flex items-center gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                        <span className="font-bold text-white">{ing.quantity} {ing.unit}</span>
+                        <span className="text-slate-400">{ing.name}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
                 {/* Instructions */}
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Instructions
-                  </h3>
+                  <h3 className="font-bold text-white text-sm mb-3 font-heading">Cooking Instructions</h3>
                   <ol className="space-y-3">
                     {generatedRecipe.instructions?.map((step, index) => (
-                      <li key={index} className="flex gap-3">
-                        <span className="shrink-0 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                      <li key={index} className="flex gap-3 text-xs text-slate-300">
+                        <span className="shrink-0 w-6 h-6 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-lg flex items-center justify-center font-bold text-xs">
                           {index + 1}
                         </span>
-                        <span className="text-gray-700 pt-0.5">{step}</span>
+                        <span className="pt-0.5 leading-relaxed">{step}</span>
                       </li>
                     ))}
                   </ol>
                 </div>
 
-                {/* Nutrition */}
-                {generatedRecipe.nutrition && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">
-                      Nutrition (per serving)
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                      <NutritionBadge
-                        label="Calories"
-                        value={generatedRecipe.nutrition.calories}
-                        unit="kcal"
-                      />
-                      <NutritionBadge
-                        label="Protein"
-                        value={generatedRecipe.nutrition.protein}
-                        unit="g"
-                      />
-                      <NutritionBadge
-                        label="Carbs"
-                        value={generatedRecipe.nutrition.carbs}
-                        unit="g"
-                      />
-                      <NutritionBadge
-                        label="Fats"
-                        value={generatedRecipe.nutrition.fats}
-                        unit="g"
-                      />
-                      <NutritionBadge
-                        label="Fiber"
-                        value={generatedRecipe.nutrition.fiber}
-                        unit="g"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Cooking Tips */}
-                {generatedRecipe.cookingTips &&
-                  generatedRecipe.cookingTips.length > 0 && (
-                    <div className="bg-emerald-50 rounded-lg p-4">
-                      <h3 className="font-semibold text-emerald-900 mb-2">
-                        💡 Cooking Tips
-                      </h3>
-                      <ul className="space-y-1">
-                        {generatedRecipe.cookingTips.map((tip, index) => (
-                          <li key={index} className="text-sm text-emerald-800">
-                            • {tip}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                {/* Save & Reset Actions */}
+                <div className="flex gap-3 pt-4 border-t border-slate-800/80">
                   <button
                     onClick={handleSaveRecipe}
                     disabled={saving}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                    className="flex-1 bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2"
                   >
-                    {saving ? "Saving..." : "Save Recipe"}
+                    <Bookmark className="w-4 h-4" />
+                    {saving ? "Saving Recipe..." : "Save Recipe to Collection"}
                   </button>
                   <button
                     onClick={() => setGeneratedRecipe(null)}
-                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors"
                   >
-                    New Recipe
+                    New Generation
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center">
-                <ChefHat className="w-16 h-16 text-gray-300 mb-4" />
-                <p className="text-gray-500">
-                  Your generated recipe will appear here
+              <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800/80 h-full flex flex-col items-center justify-center min-h-[450px]">
+                <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-600">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-300 font-heading">Your Custom Recipe Will Appear Here</h3>
+                <p className="text-slate-500 text-xs mt-2 max-w-sm">
+                  Add your ingredients on the left and click "Generate AI Recipe" to create a bespoke culinary guide.
                 </p>
               </div>
             )}
@@ -458,15 +444,5 @@ const RecipeGenerator = () => {
     </div>
   );
 };
-
-const NutritionBadge = ({ label, value, unit }) => (
-  <div className="text-center p-3 bg-gray-50 rounded-lg">
-    <div className="text-lg font-bold text-gray-900">
-      {value}
-      {unit}
-    </div>
-    <div className="text-xs text-gray-600">{label}</div>
-  </div>
-);
 
 export default RecipeGenerator;

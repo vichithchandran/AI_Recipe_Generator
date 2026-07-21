@@ -10,19 +10,15 @@
 # Node.js Dependencies
 # ============================
 node_modules/
-
-# ============================
-# Vite Build Output
-# ============================
-dist/
-dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ============================
 # Logs
 # ============================
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+logs/
+*.log
 
 # ============================
 # OS / IDE Junk Files
