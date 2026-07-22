@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { userService } from "../services/userService";
 
 const DIETARY_OPTIONS = [
+  "Non-Vegetarian",
   "Vegetarian",
   "Vegan",
   "Gluten-Free",
@@ -17,9 +18,15 @@ const DIETARY_OPTIONS = [
 ];
 const CUISINES = [
   "Any",
+  "Kerala",
+  "South Indian",
+  "Tamil Nadu",
+  "Karnataka",
+  "Andhra",
+  "Indian",
+  "North Indian",
   "Italian",
   "Mexican",
-  "Indian",
   "Chinese",
   "Japanese",
   "Thai",

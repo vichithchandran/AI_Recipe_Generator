@@ -25,4 +25,16 @@ export const authService = {
       return { success: true };
     }
   },
+
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token, password) => {
+    const url = token ? `/auth/reset-password/${token}` : '/auth/reset-password';
+    const response = await api.post(url, { token, password });
+    return response.data;
+  },
 };
+

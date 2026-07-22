@@ -83,14 +83,41 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      const data = await authService.forgotPassword(email);
+      return { success: true, message: data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to send reset email";
+      return { success: false, message };
+    }
+  };
+
+  const resetPassword = async (token, password) => {
+    try {
+      const data = await authService.resetPassword(token, password);
+      if (data.success && data.token) {
+        localStorage.setItem("token", data.token);
+        setUser(data.user);
+      }
+      return { success: true, message: data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || "Password reset failed";
+      return { success: false, message };
+    }
+  };
+
   const value = {
     user,
     loading,
     login,
     register,
     logout,
+    forgotPassword,
+    resetPassword,
     isAuthenticated: !!user,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+

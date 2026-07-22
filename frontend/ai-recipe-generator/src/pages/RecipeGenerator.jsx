@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2 } from "lucide-react";
+import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
 import { recipeService } from "../services/recipeService";
@@ -7,9 +7,15 @@ import { userService } from "../services/userService";
 
 const CUISINES = [
   "Any",
+  "Kerala",
+  "South Indian",
+  "Tamil Nadu",
+  "Karnataka",
+  "Andhra",
+  "Indian",
+  "North Indian",
   "Italian",
   "Mexican",
-  "Indian",
   "Chinese",
   "Japanese",
   "Thai",
@@ -18,6 +24,7 @@ const CUISINES = [
   "American",
 ];
 const DIETARY_OPTIONS = [
+  "Non-Vegetarian",
   "Vegetarian",
   "Vegan",
   "Gluten-Free",
@@ -34,6 +41,11 @@ const COOKING_TIMES = [
 const RecipeGenerator = () => {
   const [ingredients, setIngredients] = useState([]);
   const [inputValue, setInputValue] = useState("");
+  const [inputMode, setInputMode] = useState("quick"); // 'quick' | 'bulk'
+  const [bulkText, setBulkText] = useState("");
+  const [targetDish, setTargetDish] = useState("");
+  const [fetchingIngredients, setFetchingIngredients] = useState(false);
+
   const [usePantry, setUsePantry] = useState(false);
   const [cuisineType, setCuisineType] = useState("Any");
   const [dietaryRestrictions, setDietaryRestrictions] = useState([]);
@@ -66,11 +78,84 @@ const RecipeGenerator = () => {
     }
   };
 
-  const addIngredient = () => {
-    if (inputValue.trim() && !ingredients.includes(inputValue.trim())) {
-      setIngredients([...ingredients, inputValue.trim()]);
+  const parseAndAddIngredients = (rawText) => {
+    if (!rawText || !rawText.trim()) return;
+
+    // Split by commas, semicolons, or newlines
+    const items = rawText
+      .split(/[,;\n]+/)
+      .map((item) => item.replace(/^[\s•\-\d\.]+/g, "").trim())
+      .filter((item) => item.length > 0);
+
+    if (items.length === 0) return;
+
+    const updated = [...ingredients];
+    let addedCount = 0;
+
+    items.forEach((item) => {
+      if (!updated.includes(item)) {
+        updated.push(item);
+        addedCount++;
+      }
+    });
+
+    setIngredients(updated);
+    if (addedCount > 0) {
+      toast.success(`Added ${addedCount} ingredient${addedCount > 1 ? "s" : ""}!`);
+    }
+  };
+
+  const handleQuickAdd = () => {
+    if (inputValue.trim()) {
+      parseAndAddIngredients(inputValue);
       setInputValue("");
     }
+  };
+
+  const handleBulkAdd = () => {
+    if (bulkText.trim()) {
+      parseAndAddIngredients(bulkText);
+      setBulkText("");
+    }
+  };
+
+  const handleFetchDishIngredients = async () => {
+    if (!targetDish || !targetDish.trim()) {
+      toast.error("Please enter a dish name first!");
+      return;
+    }
+
+    setFetchingIngredients(true);
+    try {
+      const res = await recipeService.fetchIngredientsForDish(
+        targetDish.trim(),
+        cuisineType,
+        dietaryRestrictions
+      );
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const newItems = [...ingredients];
+        let addedCount = 0;
+        res.data.forEach((item) => {
+          if (!newItems.includes(item)) {
+            newItems.push(item);
+            addedCount++;
+          }
+        });
+        setIngredients(newItems);
+        toast.success(`AI fetched ${addedCount} ingredients for "${targetDish.trim()}"!`);
+      } else {
+        toast.error("Could not fetch ingredients for this dish name");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch ingredients");
+    } finally {
+      setFetchingIngredients(false);
+    }
+  };
+
+  const clearAllIngredients = () => {
+    setIngredients([]);
+    toast.success("Ingredients list cleared");
   };
 
   const removeIngredient = (ingredient) => {
@@ -86,8 +171,8 @@ const RecipeGenerator = () => {
   };
 
   const handleGenerate = async () => {
-    if (!usePantry && ingredients.length === 0) {
-      toast.error("Please add at least one ingredient or check use pantry items");
+    if (!usePantry && ingredients.length === 0 && (!targetDish || !targetDish.trim())) {
+      toast.error("Please add ingredients, select pantry items, or mention a specific dish!");
       return;
     }
 
@@ -102,6 +187,7 @@ const RecipeGenerator = () => {
         dietaryRestrictions,
         servings,
         cookingTime,
+        targetDish: targetDish.trim(),
       });
 
       if (res.success && res.data) {
@@ -131,6 +217,7 @@ const RecipeGenerator = () => {
         ingredients: generatedRecipe.ingredients || [],
         instructions: generatedRecipe.instructions || [],
         dietary_tags: generatedRecipe.dietaryTags || generatedRecipe.dietary_tags || [],
+        image_url: generatedRecipe.imageUrl || generatedRecipe.image_url || null,
         nutrition: generatedRecipe.nutrition || {},
         cooking_tips: generatedRecipe.cookingTips || generatedRecipe.cooking_tips || [],
       };
@@ -153,14 +240,14 @@ const RecipeGenerator = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
             <Wand2 className="w-8 h-8 text-slate-950" />
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-heading">
             AI Recipe <span className="text-gradient">Generator</span>
           </h1>
           <p className="text-slate-400 text-sm mt-2">
-            Input available ingredients or pull from your pantry — our AI will create a safe, delicious, custom recipe.
+            Mention a specific dish craving or input ingredients — our AI will automatically fetch ingredients and create a custom recipe.
           </p>
         </div>
 
@@ -169,10 +256,22 @@ const RecipeGenerator = () => {
           <div className="lg:col-span-5 space-y-6">
             {/* Ingredient Builder Card */}
             <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
-              <h2 className="text-base font-bold text-white mb-4 font-heading flex items-center gap-2">
-                <ChefHat className="w-5 h-5 text-emerald-400" />
-                <span>Ingredients</span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-white font-heading flex items-center gap-2">
+                  <ChefHat className="w-5 h-5 text-emerald-400" />
+                  <span>Ingredients</span>
+                </h2>
+                {ingredients.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAllIngredients}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Clear All ({ingredients.length})</span>
+                  </button>
+                )}
+              </div>
 
               {/* Use Pantry Toggle */}
               <label className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 cursor-pointer mb-4 hover:bg-emerald-500/15 transition-colors">
@@ -180,48 +279,115 @@ const RecipeGenerator = () => {
                   type="checkbox"
                   checked={usePantry}
                   onChange={(e) => setUsePantry(e.target.checked)}
-                  className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500"
+                  className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500 cursor-pointer shrink-0"
                 />
                 <span className="text-xs font-bold text-emerald-300">
                   Include active non-expired pantry items
                 </span>
               </label>
 
-              {/* Add Ingredient Input */}
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && addIngredient()}
-                  placeholder="Type ingredient (e.g. Tomatoes)"
-                  className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs"
-                />
+              {/* Input Mode Selector Tabs */}
+              <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 mb-4 text-xs font-semibold">
                 <button
-                  onClick={addIngredient}
-                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition-all text-xs flex items-center justify-center"
+                  type="button"
+                  onClick={() => setInputMode("quick")}
+                  className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    inputMode === "quick"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Single / Comma List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode("bulk")}
+                  className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    inputMode === "bulk"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Bulk Textarea</span>
                 </button>
               </div>
 
-              {/* Ingredient Badges */}
-              {ingredients.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {ingredients.map((ingredient, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 border border-slate-800 text-slate-200 rounded-lg text-xs font-medium"
+              {/* Single or Comma Separated Input */}
+              {inputMode === "quick" ? (
+                <div className="space-y-2 mb-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleQuickAdd())}
+                      placeholder="Type single or multiple items (e.g. Tomatoes, Garlic, Onion)"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleQuickAdd}
+                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition-all text-xs flex items-center justify-center cursor-pointer"
                     >
-                      {ingredient}
-                      <button
-                        onClick={() => removeIngredient(ingredient)}
-                        className="text-slate-500 hover:text-red-400 transition-colors"
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    💡 Tip: Add individually or separate multiple items by commas (e.g. <span className="text-slate-400">Chicken, Garlic, Onion</span>)
+                  </p>
+                </div>
+              ) : (
+                /* Bulk Textarea Input Mode */
+                <div className="space-y-3 mb-4">
+                  <textarea
+                    rows={4}
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder={`Paste or type multiple ingredients list...\n\nExample:\n100g Basmati Rice\n200g Paneer\nGarlic, Ginger, Green Chillies`}
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs leading-relaxed resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleBulkAdd}
+                    disabled={!bulkText.trim()}
+                    className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                  >
+                    <ListPlus className="w-4 h-4" />
+                    <span>Parse & Add All Ingredients</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Ingredient Badges */}
+              {ingredients.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-[11px] font-semibold text-slate-400 flex items-center justify-between">
+                    <span>Active Recipe Ingredients:</span>
+                    <span className="text-emerald-400 font-bold">{ingredients.length} items</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                    {ingredients.map((ingredient, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 border border-slate-800 text-slate-200 rounded-lg text-xs font-medium group hover:border-slate-700"
                       >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  ))}
+                        <span>{ingredient}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeIngredient(ingredient)}
+                          className="text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 border border-dashed border-slate-800/80 rounded-2xl text-slate-500 text-xs">
+                  No ingredients added yet. Mention a specific dish below or add ingredients above.
                 </div>
               )}
             </div>
@@ -229,6 +395,47 @@ const RecipeGenerator = () => {
             {/* Custom Preferences Card */}
             <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 space-y-5">
               <h2 className="text-base font-bold text-white font-heading">Preferences</h2>
+
+              {/* Specific Target Dish Textarea */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Specific Dish Craving (Optional)
+                  </label>
+                  {targetDish.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleFetchDishIngredients}
+                      disabled={fetchingIngredients}
+                      className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Auto-fetch ingredients for this dish using AI"
+                    >
+                      {fetchingIngredients ? (
+                        <>
+                          <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                          <span>Fetching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3 h-3 text-emerald-400" />
+                          <span>Auto-Fetch Ingredients</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={targetDish}
+                  onChange={(e) => setTargetDish(e.target.value)}
+                  placeholder="Mention a specific dish (e.g. Kerala Karimeen Curry, Palak Paneer, Chicken Biryani)... AI will auto-fetch ingredients!"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs leading-relaxed resize-none"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  ✨ Enter any dish name above — AI will automatically determine and fetch the authentic ingredients!
+                </p>
+              </div>
 
               {/* Cuisine Selection */}
               <div>
@@ -254,27 +461,30 @@ const RecipeGenerator = () => {
                   Dietary Restrictions
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {DIETARY_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => toggleDietary(option)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                        dietaryRestrictions.includes(option)
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                          : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
+                  {DIETARY_OPTIONS.map((option) => {
+                    const isSelected = dietaryRestrictions.includes(option);
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => toggleDietary(option)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                          isSelected
+                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                            : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Servings */}
               <div>
-                <div className="flex justify-between text-xs font-semibold text-slate-400 mb-2">
-                  <span>Servings</span>
+                <div className="flex justify-between items-center text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  <span>Target Servings</span>
                   <span className="text-emerald-400 font-bold">{servings} people</span>
                 </div>
                 <input
@@ -315,7 +525,7 @@ const RecipeGenerator = () => {
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               {generating ? (
                 <>
@@ -335,6 +545,20 @@ const RecipeGenerator = () => {
           <div className="lg:col-span-7">
             {generatedRecipe ? (
               <div className="glass-panel rounded-3xl p-8 border border-slate-800/80 shadow-2xl space-y-6 animate-fade-in">
+                {/* Generated Recipe Image */}
+                {(generatedRecipe.imageUrl || generatedRecipe.image_url) && (
+                  <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-slate-800 shadow-md">
+                    <img
+                      src={generatedRecipe.imageUrl || generatedRecipe.image_url}
+                      alt={generatedRecipe.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Title & Header */}
                 <div>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -385,10 +609,14 @@ const RecipeGenerator = () => {
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
                     {generatedRecipe.ingredients?.map((ing, index) => (
-                      <div key={index} className="flex items-center gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                        <span className="font-bold text-white">{ing.quantity} {ing.unit}</span>
-                        <span className="text-slate-400">{ing.name}</span>
+                      <div key={index} className="flex items-center justify-between gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full shrink-0"></span>
+                          <span className="text-slate-300 font-medium truncate">{ing.name}</span>
+                        </div>
+                        <span className="shrink-0 px-2 py-0.5 bg-emerald-500/15 text-emerald-300 font-bold rounded-lg border border-emerald-500/25 text-[11px]">
+                          {parseFloat(ing.quantity)} {ing.unit}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -414,14 +642,14 @@ const RecipeGenerator = () => {
                   <button
                     onClick={handleSaveRecipe}
                     disabled={saving}
-                    className="flex-1 bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2"
+                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Bookmark className="w-4 h-4" />
                     {saving ? "Saving Recipe..." : "Save Recipe to Collection"}
                   </button>
                   <button
                     onClick={() => setGeneratedRecipe(null)}
-                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors"
+                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
                   >
                     New Generation
                   </button>
@@ -432,9 +660,11 @@ const RecipeGenerator = () => {
                 <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-600">
                   <Sparkles className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-300 font-heading">Your Custom Recipe Will Appear Here</h3>
-                <p className="text-slate-500 text-xs mt-2 max-w-sm">
-                  Add your ingredients on the left and click "Generate AI Recipe" to create a bespoke culinary guide.
+                <h3 className="text-lg font-bold text-white font-heading">
+                  Ready to Craft Your Recipe
+                </h3>
+                <p className="text-slate-400 text-xs mt-2 max-w-sm leading-relaxed">
+                  Mention a specific dish craving under Preferences or add ingredients on the left to begin.
                 </p>
               </div>
             )}

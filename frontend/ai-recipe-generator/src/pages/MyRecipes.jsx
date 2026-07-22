@@ -187,13 +187,24 @@ const RecipeCard = ({ recipe, onDelete }) => {
   return (
     <div className="glass-panel rounded-3xl border border-slate-800/80 overflow-hidden hover:border-emerald-500/30 transition-all glass-panel-hover flex flex-col justify-between group">
       <div>
-        {/* Banner Graphic */}
+        {/* Banner Graphic / Image */}
         <div className="h-44 bg-linear-to-br from-slate-900 via-emerald-950/30 to-slate-950 border-b border-slate-800 flex items-center justify-center relative overflow-hidden">
-          <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <ChefHat className="w-10 h-10 text-emerald-400" />
-          </div>
+          {recipe.image_url || recipe.imageUrl ? (
+            <img
+              src={recipe.image_url || recipe.imageUrl}
+              alt={recipe.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ChefHat className="w-10 h-10 text-emerald-400" />
+            </div>
+          )}
           {recipe.cuisine_type && (
-            <span className="absolute top-3 right-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 text-emerald-400 rounded-lg text-[11px] font-bold">
+            <span className="absolute top-3 right-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 text-emerald-400 rounded-lg text-[11px] font-bold z-10">
               {recipe.cuisine_type}
             </span>
           )}

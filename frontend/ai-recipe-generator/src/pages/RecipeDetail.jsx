@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, ArrowLeft, Trash2 } from "lucide-react";
+import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
@@ -14,8 +14,6 @@ const RecipeDetail = () => {
   const [servings, setServings] = useState(4);
   const [checkedIngredients, setCheckedIngredients] = useState(new Set());
   const [loading, setLoading] = useState(true);
-
-  // Confirm modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
@@ -60,8 +58,14 @@ const RecipeDetail = () => {
     setCheckedIngredients(newChecked);
   };
 
-  const adjustQuantity = (originalQty, originalServings) => {
-    return ((originalQty * servings) / originalServings).toFixed(2);
+  const formatQuantity = (originalQty, originalServings) => {
+    if (!originalQty) return "";
+    const calc = (originalQty * servings) / originalServings;
+    return parseFloat(calc.toFixed(2));
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   if (loading) {
@@ -75,28 +79,64 @@ const RecipeDetail = () => {
 
   if (!recipe) return null;
 
-  const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+  const totalTime = (recipe.prep_time || recipe.prepTime || 0) + (recipe.cook_time || recipe.cookTime || 0);
   const originalServings = recipe.servings || 4;
+  const cookingTips = recipe.cooking_tips || recipe.cookingTips || [];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-12">
+    <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-16">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Back Button */}
-        <Link
-          to="/recipes"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Recipe Collection
-        </Link>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Navigation & Actions Header */}
+        <div className="flex items-center justify-between mb-6">
+          <Link
+            to="/recipes"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Recipe Collection
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+              title="Print Recipe"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print</span>
+            </button>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 text-slate-400 hover:text-red-400 hover:border-red-500/30 rounded-xl text-xs font-medium transition-all cursor-pointer"
+              title="Delete Recipe"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
 
         {/* Recipe Hero Card */}
-        <div className="glass-panel rounded-3xl p-8 border border-slate-800/80 mb-8 shadow-2xl">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex-1">
-              <div className="flex flex-wrap gap-2 mb-3">
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800/80 mb-8 shadow-2xl overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            {(recipe.image_url || recipe.imageUrl) && (
+              <div className="md:col-span-5 relative w-full h-64 md:h-72 rounded-2xl overflow-hidden border border-slate-800 shadow-xl group">
+                <img
+                  src={recipe.image_url || recipe.imageUrl}
+                  alt={recipe.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+              </div>
+            )}
+
+            <div className={`${(recipe.image_url || recipe.imageUrl) ? 'md:col-span-7' : 'md:col-span-12'} space-y-4`}>
+              <div className="flex flex-wrap items-center gap-2">
                 {recipe.cuisine_type && (
                   <span className="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-semibold">
                     {recipe.cuisine_type}
@@ -123,72 +163,104 @@ const RecipeDetail = () => {
                   name={recipe.name}
                   tags={recipe.dietary_tags || []}
                   ingredients={recipe.ingredients || []}
-                  className="w-5 h-5"
+                  className="w-6 h-6 shrink-0"
                 />
-                <h1 className="text-3xl font-extrabold text-white font-heading">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white font-heading leading-tight">
                   {recipe.name}
                 </h1>
               </div>
+
               {recipe.description && (
-                <p className="text-slate-400 text-sm mt-2 leading-relaxed max-w-2xl">{recipe.description}</p>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">{recipe.description}</p>
               )}
-            </div>
 
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="p-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-red-400 hover:border-red-500/30 rounded-xl transition-all"
-              title="Delete Recipe"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-          </div>
+              {/* Meta Quick Stats Bar */}
+              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-800/80">
+                <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">{totalTime} mins</div>
+                    <div className="text-[10px] text-slate-400">Total Time</div>
+                  </div>
+                </div>
 
-          <div className="flex flex-wrap gap-6 text-xs text-slate-400 font-medium pt-4 border-t border-slate-800/80">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-emerald-400" />
-              <span className="text-slate-200 font-bold">{totalTime} minutes total</span>
+                <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-white">{servings} Servings</div>
+                    <div className="text-[10px] text-slate-400">Servings</div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/80 flex items-center gap-3">
+                  <div className="p-2 bg-amber-500/10 rounded-xl text-amber-400">
+                    <Flame className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">{recipe.nutrition?.calories || 350} kcal</div>
+                    <div className="text-[10px] text-slate-400">Per Serving</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            {recipe.prep_time && <div>Prep: {recipe.prep_time} mins</div>}
-            {recipe.cook_time && <div>Cook: {recipe.cook_time} mins</div>}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Ingredients Adjuster Side Panel */}
-          <div className="lg:col-span-1">
-            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 sticky top-24">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                <h2 className="text-base font-bold text-white font-heading">Ingredients</h2>
-                <div className="flex items-center gap-1 text-xs text-slate-400">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>Adjust Servings</span>
+        {/* Servings Controller Banner */}
+        <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Adjust Recipe Servings</h3>
+              <p className="text-xs text-slate-400">Ingredient quantities automatically recalculate below</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 bg-slate-900/90 px-4 py-2 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setServings(Math.max(1, servings - 1))}
+              className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-sm transition-colors cursor-pointer"
+            >
+              −
+            </button>
+            <span className="text-sm font-extrabold text-white px-2 min-w-[70px] text-center">
+              {servings} {servings === 1 ? "Serving" : "Servings"}
+            </span>
+            <button
+              onClick={() => setServings(servings + 1)}
+              className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-sm transition-colors cursor-pointer"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Recipe Content Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Ingredients Section (5 Cols on LG) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <ChefHat className="w-5 h-5 text-emerald-400" />
+                  <h2 className="text-base font-bold text-white font-heading">Ingredients Checklist</h2>
                 </div>
-              </div>
-
-              {/* Servings Adjuster */}
-              <div className="mb-6 bg-slate-900/80 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
-                <button
-                  onClick={() => setServings(Math.max(1, servings - 1))}
-                  className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-colors"
-                >
-                  −
-                </button>
-                <span className="text-base font-extrabold text-white">
-                  {servings} {servings === 1 ? "Serving" : "Servings"}
+                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                  {checkedIngredients.size}/{recipe.ingredients?.length || 0} Ready
                 </span>
-                <button
-                  onClick={() => setServings(servings + 1)}
-                  className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-colors"
-                >
-                  +
-                </button>
               </div>
 
-              {/* Ingredients Checklist */}
+              {/* Ingredients List */}
               <div className="space-y-2.5">
                 {recipe.ingredients &&
                   recipe.ingredients.map((ingredient, index) => {
-                    const adjustedQty = adjustQuantity(
+                    const adjustedQty = formatQuantity(
                       ingredient.quantity,
                       originalServings
                     );
@@ -197,20 +269,26 @@ const RecipeDetail = () => {
                     return (
                       <label
                         key={index}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-900/60 transition-colors cursor-pointer text-xs"
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-xs ${
+                          isChecked
+                            ? "bg-slate-900/40 border-slate-800/60 opacity-60"
+                            : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
+                        }`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleIngredient(index)}
-                          className="mt-0.5 w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500"
+                          className="w-4 h-4 text-emerald-500 bg-slate-950 border-slate-700 rounded focus:ring-emerald-500 cursor-pointer shrink-0"
                         />
-                        <span
-                          className={`flex-1 ${isChecked ? "line-through text-slate-600" : "text-slate-200"}`}
-                        >
-                          <span className="font-bold text-emerald-400">{adjustedQty} {ingredient.unit}</span>{" "}
-                          <span>{ingredient.name}</span>
-                        </span>
+                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                          <span className={`font-semibold truncate ${isChecked ? "line-through text-slate-500" : "text-slate-200"}`}>
+                            {ingredient.name}
+                          </span>
+                          <span className="shrink-0 px-2 py-0.5 bg-emerald-500/15 text-emerald-300 font-bold rounded-lg border border-emerald-500/25 text-[11px]">
+                            {adjustedQty} {ingredient.unit}
+                          </span>
+                        </div>
                       </label>
                     );
                   })}
@@ -218,24 +296,47 @@ const RecipeDetail = () => {
             </div>
           </div>
 
-          {/* Main Recipe Content Column */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 space-y-4">
-              <h2 className="text-base font-bold text-white font-heading">Instructions</h2>
+          {/* Instructions & Details Section (7 Cols on LG) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Instructions Step Card */}
+            <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
+              <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-800">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-base font-bold text-white font-heading">Step-by-Step Instructions</h2>
+              </div>
+
               <ol className="space-y-4">
                 {recipe.instructions &&
                   recipe.instructions.map((step, index) => (
-                    <li key={index} className="flex gap-3 text-xs text-slate-300">
-                      <span className="shrink-0 w-7 h-7 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center justify-center font-bold">
+                    <li key={index} className="flex gap-3.5 text-xs text-slate-300 p-3 rounded-2xl bg-slate-900/50 border border-slate-800/60 hover:border-slate-700/80 transition-colors">
+                      <span className="shrink-0 w-7 h-7 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center justify-center font-bold text-xs">
                         {index + 1}
                       </span>
-                      <p className="pt-1 leading-relaxed flex-1">{step}</p>
+                      <p className="pt-1 leading-relaxed flex-1 text-slate-300">{step}</p>
                     </li>
                   ))}
               </ol>
             </div>
 
-            {/* Nutrition Card */}
+            {/* Cooking Tips (if available) */}
+            {cookingTips.length > 0 && (
+              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-emerald-950/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-sm font-bold text-white font-heading">Chef's Pro Tips</h3>
+                </div>
+                <ul className="space-y-2">
+                  {cookingTips.map((tip, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                      <span className="text-emerald-400 font-bold">•</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Nutrition per Serving */}
             {recipe.nutrition && (
               <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
                 <h2 className="text-base font-bold text-white font-heading mb-4">Nutrition per Serving</h2>
@@ -267,7 +368,7 @@ const RecipeDetail = () => {
 };
 
 const NutritionCard = ({ label, value, unit }) => (
-  <div className="text-center p-3 bg-slate-900/80 rounded-2xl border border-slate-800">
+  <div className="text-center p-3 bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
     <div className="text-base font-extrabold text-white">
       {value} <span className="text-xs font-normal text-emerald-400">{unit}</span>
     </div>

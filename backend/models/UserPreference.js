@@ -10,7 +10,7 @@ const userPreferenceSchema = new mongoose.Schema(
     },
     dietary_restrictions: {
       type: [String],
-      enum: ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo'],
+      enum: ['Non-Vegetarian', 'Non-Veg', 'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo'],
       default: [],
     },
     allergies: {
@@ -19,7 +19,24 @@ const userPreferenceSchema = new mongoose.Schema(
     },
     preferred_cuisines: {
       type: [String],
-      enum: ['Any', 'Italian', 'Mexican', 'Indian', 'Chinese', 'Japanese', 'Thai', 'French', 'Mediterranean', 'American'],
+      enum: [
+        'Any',
+        'Kerala',
+        'South Indian',
+        'Tamil Nadu',
+        'Karnataka',
+        'Andhra',
+        'Indian',
+        'North Indian',
+        'Italian',
+        'Mexican',
+        'Chinese',
+        'Japanese',
+        'Thai',
+        'French',
+        'Mediterranean',
+        'American',
+      ],
       default: ['Any'],
     },
     default_servings: {

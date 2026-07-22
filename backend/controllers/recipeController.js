@@ -1,7 +1,7 @@
 import Recipe from '../models/Recipe.js';
 import PantryItem from '../models/PantryItem.js';
 import ApiError from '../utils/apiError.js';
-import { generateRecipeFromAI } from '../services/aiService.js';
+import { generateRecipeFromAI, fetchIngredientsFromAI } from '../services/aiService.js';
 
 // @desc    Get all user saved recipes
 // @route   GET /api/recipes
@@ -19,18 +19,18 @@ export const getRecipes = async (req, res, next) => {
       ];
     }
 
-    if (cuisine && cuisine !== 'All') {
+    if (cuisine && cuisine !== 'all') {
       query.cuisine_type = cuisine;
     }
 
-    if (difficulty && difficulty !== 'All') {
+    if (difficulty && difficulty !== 'all') {
       query.difficulty = difficulty;
     }
 
     let recipeQuery = Recipe.find(query).sort({ createdAt: -1 });
 
     if (limit) {
-      recipeQuery = recipeQuery.limit(parseInt(limit, 10));
+      recipeQuery = recipeQuery.limit(Number(limit));
     }
 
     const recipes = await recipeQuery;
@@ -45,7 +45,7 @@ export const getRecipes = async (req, res, next) => {
   }
 };
 
-// @desc    Get single recipe by ID
+// @desc    Get single recipe details
 // @route   GET /api/recipes/:id
 // @access  Private
 export const getRecipeById = async (req, res, next) => {
@@ -65,7 +65,7 @@ export const getRecipeById = async (req, res, next) => {
   }
 };
 
-// @desc    Save a new recipe
+// @desc    Create / save a recipe
 // @route   POST /api/recipes
 // @access  Private
 export const createRecipe = async (req, res, next) => {
@@ -86,12 +86,32 @@ export const createRecipe = async (req, res, next) => {
   }
 };
 
+// @desc    Auto-fetch ingredients for a target dish name
+// @route   POST /api/recipes/fetch-ingredients
+// @access  Private
+export const fetchIngredientsForDish = async (req, res, next) => {
+  try {
+    const { dishName, cuisineType = 'Any', dietaryRestrictions = [] } = req.body;
+    if (!dishName || !dishName.trim()) {
+      return next(new ApiError('Please enter a target dish name', 400));
+    }
+
+    const ingredients = await fetchIngredientsFromAI(dishName, cuisineType, dietaryRestrictions);
+    res.status(200).json({
+      success: true,
+      data: ingredients,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Generate AI recipe (Restricts expired pantry items)
 // @route   POST /api/recipes/generate
 // @access  Private
 export const generateRecipe = async (req, res, next) => {
   try {
-    let { ingredients = [], usePantry, cuisineType, dietaryRestrictions, servings, cookingTime } = req.body;
+    let { ingredients = [], usePantry, cuisineType, dietaryRestrictions, servings, cookingTime, targetDish } = req.body;
 
     if (!Array.isArray(ingredients)) {
       ingredients = [];
@@ -99,7 +119,8 @@ export const generateRecipe = async (req, res, next) => {
 
     if (usePantry) {
       const now = new Date();
-      // Filter out expired items: only include items with no expiry date or expiry_date >= today
+      now.setHours(0, 0, 0, 0);
+      // Filter out expired items: only include items with no expiry date or expiry_date >= start of today
       const validPantryItems = await PantryItem.find({
         user: req.user._id,
         $or: [
@@ -112,12 +133,12 @@ export const generateRecipe = async (req, res, next) => {
       ingredients = [...new Set([...ingredients, ...pantryNames])];
     }
 
-    if (ingredients.length === 0) {
+    if (ingredients.length === 0 && (!targetDish || !targetDish.trim())) {
       return next(
         new ApiError(
           usePantry
-            ? 'No valid, non-expired pantry items found. Please add fresh ingredients!'
-            : 'Please add at least one ingredient',
+            ? 'No valid, non-expired pantry items found. Please add fresh ingredients or enter a target dish!'
+            : 'Please add at least one ingredient or enter a target dish name',
           400
         )
       );
@@ -129,6 +150,7 @@ export const generateRecipe = async (req, res, next) => {
       dietaryRestrictions,
       servings,
       cookingTime,
+      targetDish,
     });
 
     res.status(200).json({

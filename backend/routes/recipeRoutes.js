@@ -4,6 +4,7 @@ import {
   getRecipeById,
   createRecipe,
   generateRecipe,
+  fetchIngredientsForDish,
   deleteRecipe,
 } from '../controllers/recipeController.js';
 import { validateRecipe } from '../validators/recipeValidator.js';
@@ -15,6 +16,7 @@ router.use(protect);
 
 router.get('/', getRecipes);
 router.post('/generate', generateRecipe);
+router.post('/fetch-ingredients', fetchIngredientsForDish);
 router.get('/:id', getRecipeById);
 router.post('/', validateRecipe, createRecipe);
 router.delete('/:id', deleteRecipe);

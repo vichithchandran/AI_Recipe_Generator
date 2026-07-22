@@ -141,7 +141,15 @@ async function runE2ETests() {
     const stats = await request('/api/dashboard/stats', 'GET', null, token);
     console.log(`   Dashboard Stats Status: ${stats.status}`, stats.body.stats);
 
+    // 11. Forgot Password & Reset Password
+    console.log('\n11. Testing Forgot Password & Reset Password Flow...');
+    const forgotRes = await request('/api/auth/forgot-password', 'POST', {
+      email: testEmail,
+    });
+    console.log(`   Forgot Password Request Status: ${forgotRes.status}`, forgotRes.body.message);
+
     console.log('\n✅ ALL E2E VERIFICATION TESTS PASSED SUCCESSFULLY!');
+
   } catch (error) {
     console.error('\n❌ E2E Verification Failed:', error);
   }
