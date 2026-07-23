@@ -32,6 +32,11 @@ export const recipeService = {
     return response.data;
   },
 
+  calculateNutrition: async (recipeName, ingredients = [], servings = 4) => {
+    const response = await api.post('/recipes/calculate-nutrition', { recipeName, ingredients, servings });
+    return response.data;
+  },
+
   deleteRecipe: async (id) => {
     const response = await api.delete(`/recipes/${id}`);
     return response.data;

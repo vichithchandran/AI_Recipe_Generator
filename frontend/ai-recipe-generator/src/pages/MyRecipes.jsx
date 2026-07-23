@@ -1,11 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Clock, ChefHat, Trash2, Sparkles, ArrowRight } from "lucide-react";
+import { Search, Clock, ChefHat, Trash2, Sparkles, ArrowRight, Plus, X, Video, Image, Wand2, Calculator, PlusCircle } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
 import toast from "react-hot-toast";
 import { recipeService } from "../services/recipeService";
+
+const CUISINES = [
+  "All",
+  "Indian (All Regions)",
+  "Kerala",
+  "South Indian",
+  "Tamil Nadu",
+  "Karnataka",
+  "Andhra Pradesh",
+  "Telangana",
+  "North Indian",
+  "Punjabi",
+  "Bengali (West Bengal)",
+  "Maharashtrian",
+  "Gujarati",
+  "Rajasthani",
+  "Goan",
+  "Kashmiri",
+  "Odia (Odisha)",
+  "Assamese",
+  "Bihari",
+  "Hyderabadi",
+  "Chettinad",
+  "Awadhi / Mughlai",
+  "Himachali",
+  "Uttarakhand / Kumaoni",
+  "Naga",
+  "Manipuri",
+  "Meghalayan",
+  "Sikkimese",
+  "Indo-Chinese",
+  "Italian",
+  "Mexican",
+  "Chinese",
+  "Japanese",
+  "Thai",
+  "French",
+  "Mediterranean",
+  "American",
+  "Other",
+];
+
+const DIFFICULTIES = ["All", "easy", "medium", "hard"];
 
 const MyRecipes = () => {
   const [recipes, setRecipes] = useState([]);
@@ -13,29 +56,12 @@ const MyRecipes = () => {
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [selectedDifficulty, setSelectedDifficulty] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Confirm Modal state
   const [deleteRecipeId, setDeleteRecipeId] = useState(null);
 
-  const cuisines = [
-    "All",
-    "Italian",
-    "Mexican",
-    "Indian",
-    "Chinese",
-    "Japanese",
-    "Thai",
-    "French",
-    "Mediterranean",
-    "American",
-  ];
-  const difficulties = ["All", "easy", "medium", "hard"];
-
-  useEffect(() => {
-    fetchRecipes();
-  }, [searchQuery, selectedCuisine, selectedDifficulty]);
-
-  const fetchRecipes = async () => {
+  const fetchRecipes = useCallback(async () => {
     try {
       setLoading(true);
       const res = await recipeService.getRecipes(
@@ -51,7 +77,11 @@ const MyRecipes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, selectedCuisine, selectedDifficulty]);
+
+  useEffect(() => {
+    fetchRecipes();
+  }, [fetchRecipes]);
 
   const confirmDelete = async () => {
     if (!deleteRecipeId) return;
@@ -80,15 +110,26 @@ const MyRecipes = () => {
             <h1 className="text-3xl font-extrabold text-white tracking-tight font-heading">
               My <span className="text-gradient">Recipe Collection</span>
             </h1>
-            <p className="text-slate-400 text-sm mt-1">Browse and filter saved recipes with Veg & Non-Veg indicators</p>
+            <p className="text-slate-400 text-sm mt-1">Browse, create, and manage your saved and custom recipes</p>
           </div>
-          <Link
-            to="/generate"
-            className="inline-flex items-center justify-center gap-2 bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-bold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm"
-          >
-            <Sparkles className="w-4 h-4" />
-            Generate New Recipe
-          </Link>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center justify-center gap-2 bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Custom Recipe</span>
+            </button>
+
+            <Link
+              to="/generate"
+              className="inline-flex items-center justify-center gap-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white font-bold px-5 py-3 rounded-xl hover:bg-slate-800 transition-all text-xs"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>AI Recipe Generator</span>
+            </Link>
+          </div>
         </div>
 
         {/* Search & Filters Bar */}
@@ -112,7 +153,7 @@ const MyRecipes = () => {
               onChange={(e) => setSelectedCuisine(e.target.value)}
               className="px-4 py-2.5 bg-slate-900/80 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm font-medium"
             >
-              {cuisines.map((cuisine) => (
+              {CUISINES.map((cuisine) => (
                 <option key={cuisine} value={cuisine}>
                   {cuisine === "All" ? "All Cuisines" : cuisine}
                 </option>
@@ -125,7 +166,7 @@ const MyRecipes = () => {
               onChange={(e) => setSelectedDifficulty(e.target.value)}
               className="px-4 py-2.5 bg-slate-900/80 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm font-medium"
             >
-              {difficulties.map((diff) => (
+              {DIFFICULTIES.map((diff) => (
                 <option key={diff} value={diff}>
                   {diff === "All"
                     ? "All Difficulties"
@@ -157,12 +198,15 @@ const MyRecipes = () => {
                 ? "No recipes match your search filters"
                 : "No saved recipes in your collection"}
             </p>
-            <Link
-              to="/generate"
-              className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all"
-            >
-              Generate Your First Recipe
-            </Link>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-emerald-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add Your Custom Recipe
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -177,6 +221,17 @@ const MyRecipes = () => {
         confirmText="Delete Recipe"
         variant="danger"
       />
+
+      {/* Create Custom Recipe Modal */}
+      {showCreateModal && (
+        <CreateRecipeModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            fetchRecipes();
+            setShowCreateModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -195,7 +250,7 @@ const RecipeCard = ({ recipe, onDelete }) => {
               alt={recipe.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               onError={(e) => {
-                e.target.style.display = 'none';
+                e.target.style.display = "none";
               }}
             />
           ) : (
@@ -206,6 +261,12 @@ const RecipeCard = ({ recipe, onDelete }) => {
           {recipe.cuisine_type && (
             <span className="absolute top-3 right-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 text-emerald-400 rounded-lg text-[11px] font-bold z-10">
               {recipe.cuisine_type}
+            </span>
+          )}
+          {(recipe.video_url || recipe.videoUrl) && (
+            <span className="absolute top-3 left-3 px-2 py-1 bg-red-950/80 backdrop-blur-md border border-red-500/30 text-red-300 rounded-lg text-[10px] font-bold z-10 flex items-center gap-1">
+              <Video className="w-3 h-3 text-red-400" />
+              <span>Video</span>
             </span>
           )}
         </div>
@@ -258,7 +319,9 @@ const RecipeCard = ({ recipe, onDelete }) => {
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             <span>{totalTime} mins</span>
           </div>
-          {recipe.calories && <span>{recipe.calories} kcal</span>}
+          {(recipe.nutrition?.calories || recipe.calories) && (
+            <span>{recipe.nutrition?.calories || recipe.calories} kcal</span>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -271,12 +334,596 @@ const RecipeCard = ({ recipe, onDelete }) => {
           </Link>
           <button
             onClick={() => onDelete(recipe.id || recipe._id)}
-            className="px-3 py-2.5 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl transition-all"
+            className="px-3 py-2.5 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl transition-all cursor-pointer"
             title="Delete Recipe"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const DIETARY_OPTIONS = [
+  "Non-Vegetarian",
+  "Vegetarian",
+  "Vegan",
+  "Gluten-Free",
+  "Dairy-Free",
+  "Keto",
+  "Paleo",
+];
+
+const CreateRecipeModal = ({ onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    cuisine_type: "Indian",
+    difficulty: "medium",
+    prep_time: 15,
+    cook_time: 25,
+    servings: 4,
+    image_url: "",
+    video_url: "",
+  });
+
+  const [dietaryTags, setDietaryTags] = useState(["Vegetarian"]);
+  const [ingredients, setIngredients] = useState([
+    { name: "", quantity: 1, unit: "g" },
+  ]);
+  const [instructions, setInstructions] = useState([""]);
+  const [nutrition, setNutrition] = useState({
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fats: 0,
+    fiber: 0,
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+  const [calculatingNutrition, setCalculatingNutrition] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+
+  const toggleDietaryTag = (tag) => {
+    if (dietaryTags.includes(tag)) {
+      setDietaryTags(dietaryTags.filter((t) => t !== tag));
+    } else {
+      if (tag === "Non-Vegetarian") {
+        setDietaryTags([...dietaryTags.filter((t) => t !== "Vegetarian" && t !== "Vegan"), tag]);
+      } else if (tag === "Vegetarian" || tag === "Vegan") {
+        setDietaryTags([...dietaryTags.filter((t) => t !== "Non-Vegetarian"), tag]);
+      } else {
+        setDietaryTags([...dietaryTags, tag]);
+      }
+    }
+  };
+
+  // Ingredient Helpers
+  const handleAddIngredient = () => {
+    setIngredients([...ingredients, { name: "", quantity: 1, unit: "g" }]);
+  };
+
+  const handleRemoveIngredient = (index) => {
+    if (ingredients.length === 1) return;
+    setIngredients(ingredients.filter((_, i) => i !== index));
+  };
+
+  const handleIngredientChange = (index, field, value) => {
+    const updated = [...ingredients];
+    updated[index][field] = value;
+    setIngredients(updated);
+  };
+
+  // Instruction Helpers
+  const handleAddInstruction = () => {
+    setInstructions([...instructions, ""]);
+  };
+
+  const handleRemoveInstruction = (index) => {
+    if (instructions.length === 1) return;
+    setInstructions(instructions.filter((_, i) => i !== index));
+  };
+
+  const handleInstructionChange = (index, value) => {
+    const updated = [...instructions];
+    updated[index] = value;
+    setInstructions(updated);
+  };
+
+  // AI Auto-Generate Image
+  const handleGenerateImage = () => {
+    if (!formData.name.trim()) {
+      toast.error("Please enter a recipe name first!");
+      return;
+    }
+    setGeneratingImage(true);
+    const dishPrompt = [
+      formData.name,
+      formData.cuisine_type,
+      "plated dish",
+      "gourmet food photography",
+      "restaurant style",
+    ].join(", ");
+
+    const promptText = encodeURIComponent(dishPrompt);
+    const seed = Math.floor(Math.random() * 999999);
+    const generatedUrl = `https://image.pollinations.ai/prompt/${promptText}?width=900&height=600&nologo=true&enhance=true&seed=${seed}`;
+
+    setFormData((prev) => ({ ...prev, image_url: generatedUrl }));
+    setGeneratingImage(false);
+    toast.success("Generated dish image with AI!");
+  };
+
+  // AI Calculate Nutrition per Serving
+  const handleCalculateNutrition = async () => {
+    const validIngredients = ingredients.filter((i) => i.name && i.name.trim());
+    if (validIngredients.length === 0) {
+      toast.error("Please add at least one ingredient to calculate nutrition!");
+      return;
+    }
+
+    setCalculatingNutrition(true);
+    try {
+      const res = await recipeService.calculateNutrition(
+        formData.name || "Custom Dish",
+        validIngredients,
+        formData.servings || 4
+      );
+
+      if (res.success && res.data) {
+        setNutrition(res.data);
+        toast.success("AI calculated nutritional facts per serving!");
+      }
+    } catch (error) {
+      toast.error("Failed to calculate nutrition with AI");
+    } finally {
+      setCalculatingNutrition(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      toast.error("Please enter recipe name");
+      return;
+    }
+
+    const validIngredients = ingredients.filter((i) => i.name && i.name.trim());
+    if (validIngredients.length === 0) {
+      toast.error("Please add at least one ingredient");
+      return;
+    }
+
+    const validInstructions = instructions.filter((i) => i && i.trim());
+    if (validInstructions.length === 0) {
+      toast.error("Please add at least one cooking instruction step");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const recipePayload = {
+        name: formData.name.trim(),
+        description: formData.description,
+        cuisine_type: formData.cuisine_type,
+        difficulty: formData.difficulty,
+        prep_time: parseInt(formData.prep_time) || 0,
+        cook_time: parseInt(formData.cook_time) || 0,
+        servings: parseInt(formData.servings) || 4,
+        image_url: formData.image_url.trim() || null,
+        video_url: formData.video_url.trim() || null,
+        ingredients: validIngredients.map((ing) => ({
+          name: ing.name.trim(),
+          quantity: parseFloat(ing.quantity) || 1,
+          unit: ing.unit || "g",
+        })),
+        instructions: validInstructions,
+        dietary_tags: dietaryTags,
+        nutrition: nutrition,
+        calories: nutrition.calories || 0,
+      };
+
+      const res = await recipeService.createRecipe(recipePayload);
+      if (res.success) {
+        toast.success("Custom recipe saved to your collection!");
+        onSuccess();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save custom recipe");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div className="glass-panel rounded-3xl max-w-2xl w-full p-6 border border-slate-800 shadow-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-white font-heading">Add Custom Recipe</h2>
+            <p className="text-xs text-slate-400">Add ingredients, instructions, dish photo, video reference, and calculate AI nutrition</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
+          {/* Recipe Name & Cuisine */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Recipe Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Grandma's Butter Chicken"
+                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Cuisine Style</label>
+              <select
+                value={formData.cuisine_type}
+                onChange={(e) => setFormData({ ...formData, cuisine_type: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-xs"
+              >
+                {CUISINES
+                  .filter((c) => c !== "All")
+                  .map((cuisine) => (
+                    <option key={cuisine} value={cuisine}>
+                      {cuisine}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Description</label>
+            <textarea
+              rows={2}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Brief description or backstory of dish..."
+              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs leading-relaxed resize-none"
+            />
+          </div>
+
+          {/* Dietary Type / Category (Veg, Non-Veg, Vegan, etc.) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">
+              Dietary Tags (Veg / Non-Veg / Vegan / etc.)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {DIETARY_OPTIONS.map((option) => {
+                const isSelected = dietaryTags.includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleDietaryTag(option)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? option === "Non-Vegetarian"
+                          ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                          : option === "Vegetarian" || option === "Vegan"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                        : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200"
+                    }`}
+                  >
+                    {option === "Non-Vegetarian" && "🔴 "}
+                    {(option === "Vegetarian" || option === "Vegan") && "🟢 "}
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Prep Time, Cook Time, Servings, Difficulty */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Prep Time (m)</label>
+              <input
+                type="number"
+                value={formData.prep_time}
+                onChange={(e) => setFormData({ ...formData, prep_time: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Cook Time (m)</label>
+              <input
+                type="number"
+                value={formData.cook_time}
+                onChange={(e) => setFormData({ ...formData, cook_time: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Servings</label>
+              <input
+                type="number"
+                min="1"
+                value={formData.servings}
+                onChange={(e) => setFormData({ ...formData, servings: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Difficulty</label>
+              <select
+                value={formData.difficulty}
+                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none capitalize"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
+          {/* REQUIREMENT 1: Ingredients Used */}
+          <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <ChefHat className="w-4 h-4 text-emerald-400" />
+                <span>Ingredients Used *</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddIngredient}
+                className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Add Ingredient</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {ingredients.map((ing, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={ing.name}
+                    onChange={(e) => handleIngredientChange(index, "name", e.target.value)}
+                    placeholder="Ingredient Name (e.g. Chicken)"
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none focus:border-emerald-500"
+                    required
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={ing.quantity}
+                    onChange={(e) => handleIngredientChange(index, "quantity", e.target.value)}
+                    className="w-20 px-2 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none text-center"
+                    placeholder="Qty"
+                  />
+                  <select
+                    value={ing.unit}
+                    onChange={(e) => handleIngredientChange(index, "unit", e.target.value)}
+                    className="w-24 px-2 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none"
+                  >
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                    <option value="ml">ml</option>
+                    <option value="l">l</option>
+                    <option value="pieces">pcs</option>
+                    <option value="cups">cups</option>
+                    <option value="tbsp">tbsp</option>
+                    <option value="tsp">tsp</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveIngredient(index)}
+                    className="p-1.5 text-slate-500 hover:text-red-400 transition-colors cursor-pointer shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* REQUIREMENT 3: Instructions */}
+          <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <ChefHat className="w-4 h-4 text-emerald-400" />
+                <span>Step-by-Step Instructions *</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddInstruction}
+                className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Add Step</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {instructions.map((step, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <span className="shrink-0 w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center mt-1">
+                    {index + 1}
+                  </span>
+                  <textarea
+                    rows={2}
+                    value={step}
+                    onChange={(e) => handleInstructionChange(index, e.target.value)}
+                    placeholder={`Step ${index + 1} instructions...`}
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs outline-none focus:border-emerald-500 resize-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveInstruction(index)}
+                    className="p-1.5 text-slate-500 hover:text-red-400 transition-colors cursor-pointer shrink-0 mt-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* REQUIREMENT 2 & 4: Image & Video Reference URLs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* REQUIREMENT 2: Image of Dish */}
+            <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white uppercase flex items-center gap-1.5">
+                  <Image className="w-4 h-4 text-teal-400" />
+                  <span>Dish Image URL</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage}
+                  className="text-[10px] font-bold text-teal-300 hover:text-teal-200 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Generate food photo with AI"
+                >
+                  <Wand2 className="w-3 h-3 text-teal-400" />
+                  <span>AI Generate Image</span>
+                </button>
+              </div>
+              <input
+                type="url"
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 outline-none text-xs"
+              />
+              {formData.image_url && (
+                <div className="w-full h-24 rounded-xl overflow-hidden border border-slate-800 mt-2">
+                  <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
+            {/* REQUIREMENT 4: Video Reference URL */}
+            <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-2">
+              <label className="text-xs font-bold text-white uppercase flex items-center gap-1.5">
+                <Video className="w-4 h-4 text-red-400" />
+                <span>Video Reference URL</span>
+              </label>
+              <input
+                type="url"
+                value={formData.video_url}
+                onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                placeholder="https://youtube.com/watch?v=... or Video Link"
+                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 outline-none text-xs"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                📹 Attach a YouTube tutorial or video link for cooking guidance
+              </p>
+            </div>
+          </div>
+
+          {/* REQUIREMENT 5: AI Nutrition per Serving Calculator */}
+          <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Calculator className="w-4 h-4 text-emerald-400" />
+                <label className="text-xs font-bold text-white uppercase">Nutrition per Serving</label>
+              </div>
+              <button
+                type="button"
+                onClick={handleCalculateNutrition}
+                disabled={calculatingNutrition}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-extrabold text-xs hover:bg-emerald-500/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {calculatingNutrition ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Calculating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Calculate Nutrition with AI</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2 pt-1">
+              <div>
+                <label className="block text-[10px] text-slate-400 uppercase text-center mb-1">Calories</label>
+                <input
+                  type="number"
+                  value={nutrition.calories}
+                  onChange={(e) => setNutrition({ ...nutrition, calories: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 uppercase text-center mb-1">Protein (g)</label>
+                <input
+                  type="number"
+                  value={nutrition.protein}
+                  onChange={(e) => setNutrition({ ...nutrition, protein: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center font-bold text-emerald-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 uppercase text-center mb-1">Carbs (g)</label>
+                <input
+                  type="number"
+                  value={nutrition.carbs}
+                  onChange={(e) => setNutrition({ ...nutrition, carbs: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center font-bold text-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 uppercase text-center mb-1">Fats (g)</label>
+                <input
+                  type="number"
+                  value={nutrition.fats}
+                  onChange={(e) => setNutrition({ ...nutrition, fats: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center font-bold text-amber-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 uppercase text-center mb-1">Fiber (g)</label>
+                <input
+                  type="number"
+                  value={nutrition.fiber}
+                  onChange={(e) => setNutrition({ ...nutrition, fiber: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center font-bold text-purple-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Footer */}
+          <div className="flex gap-3 pt-4 border-t border-slate-800 shrink-0">
+            <button
+              type="button"
+              className="flex-1 px-4 py-2.5 border border-slate-800 text-slate-300 rounded-xl hover:bg-slate-900 font-semibold text-xs transition-colors cursor-pointer"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl font-extrabold text-xs transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {submitting ? "Saving Recipe..." : "Save Custom Recipe"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import Recipe from '../models/Recipe.js';
 import PantryItem from '../models/PantryItem.js';
 import ApiError from '../utils/apiError.js';
-import { generateRecipeFromAI, fetchIngredientsFromAI } from '../services/aiService.js';
+import { generateRecipeFromAI, fetchIngredientsFromAI, calculateNutritionFromAI } from '../services/aiService.js';
 
 // @desc    Get all user saved recipes
 // @route   GET /api/recipes
@@ -100,6 +100,22 @@ export const fetchIngredientsForDish = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: ingredients,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Calculate AI Nutrition for custom recipe
+// @route   POST /api/recipes/calculate-nutrition
+// @access  Private
+export const calculateNutrition = async (req, res, next) => {
+  try {
+    const { recipeName, ingredients = [], servings = 4 } = req.body;
+    const nutrition = await calculateNutritionFromAI(recipeName, ingredients, servings);
+    res.status(200).json({
+      success: true,
+      data: nutrition,
     });
   } catch (error) {
     next(error);

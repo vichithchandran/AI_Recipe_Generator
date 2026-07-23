@@ -27,7 +27,7 @@ const shoppingListItemSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Produce', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Other'],
+      enum: ['Vegetables', 'Fruits', 'Produce', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Other'],
       default: 'Other',
     },
     is_checked: {

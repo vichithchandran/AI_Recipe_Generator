@@ -69,7 +69,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-125 h-125 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo Header */}

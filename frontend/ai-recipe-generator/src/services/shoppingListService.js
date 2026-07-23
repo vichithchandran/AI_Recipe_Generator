@@ -11,6 +11,11 @@ export const shoppingListService = {
     return response.data;
   },
 
+  updateShoppingItem: async (id, itemData) => {
+    const response = await api.put(`/shopping-list/${id}`, itemData);
+    return response.data;
+  },
+
   toggleCheckItem: async (id) => {
     const response = await api.patch(`/shopping-list/${id}/toggle`);
     return response.data;

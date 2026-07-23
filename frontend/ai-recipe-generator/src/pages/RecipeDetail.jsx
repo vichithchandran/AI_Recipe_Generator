@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer } from "lucide-react";
+import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer, Video, ExternalLink } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
@@ -17,24 +17,24 @@ const RecipeDetail = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    loadRecipe();
-  }, [id]);
-
-  const loadRecipe = async () => {
-    try {
-      setLoading(true);
-      const res = await recipeService.getRecipeById(id);
-      if (res.success && res.data) {
-        setRecipe(res.data);
-        setServings(res.data.servings || 4);
+    const loadRecipe = async () => {
+      try {
+        setLoading(true);
+        const res = await recipeService.getRecipeById(id);
+        if (res.success && res.data) {
+          setRecipe(res.data);
+          setServings(res.data.servings || 4);
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Recipe not found");
+        navigate("/recipes");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Recipe not found");
-      navigate("/recipes");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadRecipe();
+  }, [id, navigate]);
 
   const confirmDelete = async () => {
     try {
@@ -131,7 +131,7 @@ const RecipeDetail = () => {
                     e.target.style.display = 'none';
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent"></div>
               </div>
             )}
 
@@ -229,7 +229,7 @@ const RecipeDetail = () => {
             >
               −
             </button>
-            <span className="text-sm font-extrabold text-white px-2 min-w-[70px] text-center">
+            <span className="text-sm font-extrabold text-white px-2 min-w-17.5 text-center">
               {servings} {servings === 1 ? "Serving" : "Servings"}
             </span>
             <button
@@ -318,9 +318,29 @@ const RecipeDetail = () => {
               </ol>
             </div>
 
+            {/* Video Reference */}
+            {(recipe.video_url || recipe.videoUrl) && (
+              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-slate-900/60">
+                <div className="flex items-center gap-2 mb-3">
+                  <Video className="w-5 h-5 text-red-400" />
+                  <h3 className="text-sm font-bold text-white font-heading">Video Reference</h3>
+                </div>
+                <a
+                  href={recipe.video_url || recipe.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 font-bold text-xs hover:bg-red-500/20 transition-all cursor-pointer"
+                >
+                  <Video className="w-4 h-4 text-red-400" />
+                  <span className="truncate max-w-xs">{recipe.video_url || recipe.videoUrl}</span>
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                </a>
+              </div>
+            )}
+
             {/* Cooking Tips (if available) */}
             {cookingTips.length > 0 && (
-              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-emerald-950/20">
+              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-linear-to-br from-slate-900/90 via-slate-900/50 to-emerald-950/20">
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="w-4 h-4 text-emerald-400" />
                   <h3 className="text-sm font-bold text-white font-heading">Chef's Pro Tips</h3>

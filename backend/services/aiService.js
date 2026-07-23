@@ -124,15 +124,24 @@ const postProcessRecipe = (recipe, dietaryRestrictions = []) => {
   recipe.dietaryTags = Array.from(new Set(tags));
   recipe.dietary_tags = recipe.dietaryTags;
 
-  // Generate high-resolution, gourmet food photography image URL
-  if (!recipe.imageUrl && !recipe.image_url) {
-    const dishPrompt = `${recipe.name} ${recipe.cuisineType || recipe.cuisine_type || ''} gourmet food dish photography plated restaurant style HD 8k`;
-    const promptText = encodeURIComponent(dishPrompt);
-    const seed = Math.floor(Math.random() * 100000);
-    recipe.imageUrl = `https://image.pollinations.ai/prompt/${promptText}?width=800&height=520&nologo=true&seed=${seed}`;
-  } else {
-    recipe.imageUrl = recipe.imageUrl || recipe.image_url;
-  }
+  // Always generate a fresh, reliable Pollinations AI image URL.
+  // We override whatever the AI model returned because model-generated URLs
+  // are often malformed or broken. Pollinations gives us a proper web-search
+  // powered food photograph every time.
+  const cuisineLabel = recipe.cuisineType || recipe.cuisine_type || '';
+  const dishPrompt = [
+    recipe.name,
+    cuisineLabel,
+    'authentic food photography',
+    'close up',
+    'plated dish',
+    'restaurant quality',
+    'professional lighting',
+    '4k HD'
+  ].filter(Boolean).join(', ');
+  const promptText = encodeURIComponent(dishPrompt);
+  const seed = Math.floor(Math.random() * 999999);
+  recipe.imageUrl = `https://image.pollinations.ai/prompt/${promptText}?width=900&height=600&nologo=true&enhance=true&seed=${seed}`;
   recipe.image_url = recipe.imageUrl;
 
   return recipe;
@@ -215,6 +224,106 @@ CRITICAL RULES:
   }
 
   return [];
+};
+
+/**
+ * Calculates nutritional values (calories, protein, carbs, fats, fiber) per serving
+ * using AI based on dish name, ingredients list, and target servings.
+ */
+export const calculateNutritionFromAI = async (recipeName, ingredients = [], servings = 4) => {
+  const ingStr = ingredients
+    .map((i) => (typeof i === 'string' ? i : `${i.quantity || 1} ${i.unit || ''} ${i.name || ''}`))
+    .join(', ');
+
+  const promptText = `
+You are an expert nutritionist. Calculate the estimated nutritional values PER SERVING for this recipe:
+- Dish Name: "${recipeName || 'Custom Dish'}"
+- Ingredients Used: ${ingStr || 'None specified'}
+- Servings: ${servings || 4}
+
+Respond STRICTLY with a single valid JSON object following this exact schema:
+{
+  "calories": number,
+  "protein": number (in grams),
+  "carbs": number (in grams),
+  "fats": number (in grams),
+  "fiber": number (in grams)
+}
+`;
+
+  // 1. Try Groq API
+  const groqKey = (env.LLM_API_KEY && env.LLM_API_KEY.startsWith('gsk_')) ? env.LLM_API_KEY : process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'You are an executive nutritionist. Output ONLY valid single JSON object.' },
+            { role: 'user', content: promptText }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        const parsed = JSON.parse(content);
+        if (parsed && typeof parsed.calories === 'number') {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Groq nutrition calculation failed:', e.message);
+    }
+  }
+
+  // 2. Try Free Open AI Engine
+  try {
+    const response = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You are a nutritionist. Output ONLY valid JSON object with keys "calories", "protein", "carbs", "fats", "fiber".' },
+          { role: 'user', content: promptText }
+        ],
+        jsonMode: true
+      })
+    });
+    if (response.ok) {
+      const rawText = await response.text();
+      const cleaned = rawText.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed && (parsed.calories !== undefined || parsed.protein !== undefined)) {
+        return {
+          calories: Number(parsed.calories) || 350,
+          protein: Number(parsed.protein) || 20,
+          carbs: Number(parsed.carbs) || 35,
+          fats: Number(parsed.fats) || 12,
+          fiber: Number(parsed.fiber) || 4,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Free Open AI nutrition calculation failed:', e.message);
+  }
+
+  // Default fallback estimate based on ingredients count
+  const baseCal = Math.max(250, (ingredients.length || 3) * 80);
+  return {
+    calories: baseCal,
+    protein: Math.round(baseCal * 0.05),
+    carbs: Math.round(baseCal * 0.1),
+    fats: Math.round(baseCal * 0.03),
+    fiber: Math.max(2, Math.round(ingredients.length * 1.2)),
+  };
 };
 
 /**

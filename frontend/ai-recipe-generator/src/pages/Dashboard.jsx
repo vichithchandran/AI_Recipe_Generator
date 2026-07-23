@@ -17,41 +17,41 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const res = await dashboardService.getStats();
+        if (res.success) {
+          setStats({
+            totalRecipes: res.stats.totalRecipes || 0,
+            pantryItems: res.stats.pantryItems || 0,
+            mealsThisWeek: res.stats.mealsThisWeek || 0,
+            expiringSoonCount: res.stats.expiringSoonCount || 0,
+          });
+
+          if (res.recentRecipes) {
+            setRecentRecipes(res.recentRecipes.map((r) => ({ ...r, id: r._id })));
+          }
+
+          if (res.upcomingMeals) {
+            setUpcomingMeals(
+              res.upcomingMeals.map((m) => ({
+                ...m,
+                id: m._id,
+                recipe_name: m.recipe?.name || "Recipe",
+              }))
+            );
+          }
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchDashboardData();
   }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const res = await dashboardService.getStats();
-      if (res.success) {
-        setStats({
-          totalRecipes: res.stats.totalRecipes || 0,
-          pantryItems: res.stats.pantryItems || 0,
-          mealsThisWeek: res.stats.mealsThisWeek || 0,
-          expiringSoonCount: res.stats.expiringSoonCount || 0,
-        });
-
-        if (res.recentRecipes) {
-          setRecentRecipes(res.recentRecipes.map((r) => ({ ...r, id: r._id })));
-        }
-
-        if (res.upcomingMeals) {
-          setUpcomingMeals(
-            res.upcomingMeals.map((m) => ({
-              ...m,
-              id: m._id,
-              recipe_name: m.recipe?.name || "Recipe",
-            }))
-          );
-        }
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-12">
@@ -60,7 +60,7 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Hero Banner */}
         <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800/80 p-8 md:p-10 mb-10 shadow-2xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -z-0 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl z-0 pointer-events-none"></div>
           <div className="relative z-10 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4">
               <Sparkles className="w-3.5 h-3.5" />

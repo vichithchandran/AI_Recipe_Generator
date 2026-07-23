@@ -5,8 +5,7 @@ import ApiError from '../utils/apiError.js';
 // Category mapping helper from ShoppingList to Pantry
 const mapCategoryToPantry = (category) => {
   if (category === 'Produce') return 'Vegetables';
-  if (category === 'Beverages') return 'Other';
-  const validPantryCategories = ['Vegetables', 'Fruits', 'Dairy', 'Meat', 'Grains', 'Spices', 'Other'];
+  const validPantryCategories = ['Vegetables', 'Fruits', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Other'];
   return validPantryCategories.includes(category) ? category : 'Other';
 };
 
@@ -44,6 +43,31 @@ export const addShoppingItem = async (req, res, next) => {
     });
 
     res.status(201).json({
+      success: true,
+      data: item,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update item in shopping list
+// @route   PUT /api/shopping-list/:id
+// @access  Private
+export const updateShoppingItem = async (req, res, next) => {
+  try {
+    let item = await ShoppingListItem.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!item) {
+      return next(new ApiError('Shopping list item not found', 404));
+    }
+
+    item = await ShoppingListItem.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
       success: true,
       data: item,
     });
@@ -144,6 +168,8 @@ export const transferToPantry = async (req, res, next) => {
 
       if (existingPantryItem) {
         existingPantryItem.quantity += item.quantity;
+        // Reset running low status when stock is replenished
+        existingPantryItem.is_running_low = false;
         await existingPantryItem.save();
         createdPantryItems.push(existingPantryItem);
       } else {
@@ -153,6 +179,7 @@ export const transferToPantry = async (req, res, next) => {
           quantity: item.quantity,
           unit: item.unit,
           category: pantryCategory,
+          is_running_low: false,
         });
         createdPantryItems.push(newPantryItem);
       }

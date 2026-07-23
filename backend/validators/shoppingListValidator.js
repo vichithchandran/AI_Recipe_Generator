@@ -1,7 +1,7 @@
 import ApiError from '../utils/apiError.js';
 
 const VALID_UNITS = ['pieces', 'kg', 'g', 'l', 'ml', 'cups', 'tbsp', 'tsp'];
-const VALID_CATEGORIES = ['Produce', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Other'];
+const VALID_CATEGORIES = ['Vegetables', 'Fruits', 'Produce', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Other'];
 
 export const validateShoppingListItem = (req, res, next) => {
   const { ingredient_name, quantity, unit, category } = req.body;

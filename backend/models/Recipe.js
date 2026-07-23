@@ -39,24 +39,6 @@ const recipeSchema = new mongoose.Schema(
     },
     cuisine_type: {
       type: String,
-      enum: [
-        'Kerala',
-        'South Indian',
-        'Tamil Nadu',
-        'Karnataka',
-        'Andhra',
-        'Indian',
-        'North Indian',
-        'Italian',
-        'Mexican',
-        'Chinese',
-        'Japanese',
-        'Thai',
-        'French',
-        'Mediterranean',
-        'American',
-        'Other',
-      ],
       default: 'Other',
     },
     difficulty: {
@@ -87,6 +69,10 @@ const recipeSchema = new mongoose.Schema(
       default: null,
     },
     image_url: {
+      type: String,
+      default: null,
+    },
+    video_url: {
       type: String,
       default: null,
     },

@@ -27,7 +27,7 @@ const pantryItemSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Vegetables', 'Fruits', 'Dairy', 'Meat', 'Grains', 'Spices', 'Other'],
+      enum: ['Vegetables', 'Fruits', 'Dairy', 'Meat', 'Grains', 'Spices', 'Beverages', 'Produce', 'Other'],
       default: 'Other',
     },
     expiry_date: {

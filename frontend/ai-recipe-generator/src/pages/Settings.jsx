@@ -1,11 +1,85 @@
 import { useState, useEffect } from "react";
-import { User, Lock, Trash2, Save, Eye, EyeOff, Sliders } from "lucide-react";
+import { User, Lock, Trash2, Save, Eye, EyeOff, Sliders, Coffee, UtensilsCrossed, Apple, Moon } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { userService } from "../services/userService";
+
+const MEAL_TYPES = [
+  {
+    id: "breakfast",
+    label: "Breakfast",
+    description: "Morning fuel to kickstart your day",
+    time: "6 AM – 10 AM",
+    icon: Coffee,
+    color: "amber",
+    emoji: "🌅",
+  },
+  {
+    id: "lunch",
+    label: "Lunch",
+    description: "Midday meal to keep you energised",
+    time: "12 PM – 3 PM",
+    icon: UtensilsCrossed,
+    color: "emerald",
+    emoji: "☀️",
+  },
+  {
+    id: "snack",
+    label: "Snack",
+    description: "Light bites between main meals",
+    time: "3 PM – 6 PM",
+    icon: Apple,
+    color: "orange",
+    emoji: "🍎",
+  },
+  {
+    id: "dinner",
+    label: "Dinner",
+    description: "Evening feast to end the day right",
+    time: "7 PM – 10 PM",
+    icon: Moon,
+    color: "violet",
+    emoji: "🌙",
+  },
+];
+
+const MEAL_COLOR_MAP = {
+  amber: {
+    active: "bg-amber-500/20 border-amber-400/60 text-amber-300 shadow-amber-500/15",
+    inactive: "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300",
+    icon: "bg-amber-500/15 text-amber-400",
+    iconInactive: "bg-slate-800 text-slate-500",
+    dot: "bg-amber-400",
+    time: "text-amber-400/70",
+  },
+  emerald: {
+    active: "bg-emerald-500/20 border-emerald-400/60 text-emerald-300 shadow-emerald-500/15",
+    inactive: "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300",
+    icon: "bg-emerald-500/15 text-emerald-400",
+    iconInactive: "bg-slate-800 text-slate-500",
+    dot: "bg-emerald-400",
+    time: "text-emerald-400/70",
+  },
+  orange: {
+    active: "bg-orange-500/20 border-orange-400/60 text-orange-300 shadow-orange-500/15",
+    inactive: "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300",
+    icon: "bg-orange-500/15 text-orange-400",
+    iconInactive: "bg-slate-800 text-slate-500",
+    dot: "bg-orange-400",
+    time: "text-orange-400/70",
+  },
+  violet: {
+    active: "bg-violet-500/20 border-violet-400/60 text-violet-300 shadow-violet-500/15",
+    inactive: "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300",
+    icon: "bg-violet-500/15 text-violet-400",
+    iconInactive: "bg-slate-800 text-slate-500",
+    dot: "bg-violet-400",
+    time: "text-violet-400/70",
+  },
+};
 
 const DIETARY_OPTIONS = [
   "Non-Vegetarian",
@@ -61,6 +135,7 @@ const Settings = () => {
     dietary_restrictions: [],
     allergies: [],
     preferred_cuisines: [],
+    meal_preferences: ["breakfast", "lunch", "snack", "dinner"],
     default_servings: 4,
     measurement_unit: "metric",
   });
@@ -73,10 +148,6 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    loadUserData();
-  }, [user]);
-
-  const loadUserData = async () => {
     if (user) {
       setProfile({
         name: user.name || "",
@@ -84,21 +155,26 @@ const Settings = () => {
       });
     }
 
-    try {
-      const res = await userService.getPreferences();
-      if (res.success && res.data) {
-        setPreferences({
-          dietary_restrictions: res.data.dietary_restrictions || [],
-          allergies: res.data.allergies || [],
-          preferred_cuisines: res.data.preferred_cuisines || [],
-          default_servings: res.data.default_servings || 4,
-          measurement_unit: res.data.measurement_unit || "metric",
-        });
+    const loadPreferences = async () => {
+      try {
+        const res = await userService.getPreferences();
+        if (res.success && res.data) {
+          setPreferences({
+            dietary_restrictions: res.data.dietary_restrictions || [],
+            allergies: res.data.allergies || [],
+            preferred_cuisines: res.data.preferred_cuisines || [],
+            meal_preferences: res.data.meal_preferences || ["breakfast", "lunch", "snack", "dinner"],
+            default_servings: res.data.default_servings || 4,
+            measurement_unit: res.data.measurement_unit || "metric",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading preferences:", error);
       }
-    } catch (error) {
-      console.error("Error loading preferences:", error);
-    }
-  };
+    };
+
+    loadPreferences();
+  }, [user]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -192,6 +268,15 @@ const Settings = () => {
       preferred_cuisines: prev.preferred_cuisines.includes(cuisine)
         ? prev.preferred_cuisines.filter((c) => c !== cuisine)
         : [...prev.preferred_cuisines, cuisine],
+    }));
+  };
+
+  const toggleMealPreference = (mealId) => {
+    setPreferences((prev) => ({
+      ...prev,
+      meal_preferences: prev.meal_preferences.includes(mealId)
+        ? prev.meal_preferences.filter((m) => m !== mealId)
+        : [...prev.meal_preferences, mealId],
     }));
   };
 
@@ -438,6 +523,94 @@ const Settings = () => {
                       {cuisine}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Meal Preference Selection */}
+              <div>
+                <div className="mb-3">
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    Meal Preferences
+                  </label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Select the meal types you want AI recipes generated for
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {MEAL_TYPES.map((meal) => {
+                    const isActive = preferences.meal_preferences.includes(meal.id);
+                    const colors = MEAL_COLOR_MAP[meal.color];
+                    const Icon = meal.icon;
+                    return (
+                      <button
+                        key={meal.id}
+                        type="button"
+                        onClick={() => toggleMealPreference(meal.id)}
+                        className={`relative group flex flex-col gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200 shadow-lg ${
+                          isActive
+                            ? `${colors.active} shadow-lg`
+                            : colors.inactive
+                        }`}
+                      >
+                        {/* Active dot indicator */}
+                        {isActive && (
+                          <span
+                            className={`absolute top-3 right-3 w-2 h-2 rounded-full ${colors.dot} shadow-sm`}
+                          />
+                        )}
+
+                        {/* Icon */}
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            isActive ? colors.icon : colors.iconInactive
+                          }`}
+                        >
+                          <Icon className="w-4.5 h-4.5" />
+                        </div>
+
+                        {/* Label + Emoji */}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold leading-none">{meal.label}</span>
+                            <span className="text-sm leading-none">{meal.emoji}</span>
+                          </div>
+                          <p className="text-[11px] mt-1 opacity-70 leading-snug">{meal.description}</p>
+                        </div>
+
+                        {/* Time badge */}
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg self-start ${
+                            isActive
+                              ? `${colors.time} bg-white/5`
+                              : "text-slate-600 bg-slate-800/50"
+                          }`}
+                        >
+                          {meal.time}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Summary pill */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium">Active:</span>
+                  {preferences.meal_preferences.length === 0 ? (
+                    <span className="text-[11px] text-red-400 font-semibold">None selected</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {MEAL_TYPES.filter((m) => preferences.meal_preferences.includes(m.id)).map(
+                        (m) => (
+                          <span
+                            key={m.id}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700"
+                          >
+                            {m.emoji} {m.label}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, X, ChefHat, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, X, ChefHat, Calendar, ChevronLeft, ChevronRight, Coffee, UtensilsCrossed, Apple, Moon } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import toast from "react-hot-toast";
@@ -7,7 +7,19 @@ import { format, startOfWeek, addDays } from "date-fns";
 import { mealPlanService } from "../services/mealPlanService";
 import { recipeService } from "../services/recipeService";
 
-const MEAL_TYPES = ["breakfast", "lunch", "dinner"];
+const MEAL_TYPES = [
+  { id: "breakfast", label: "Breakfast", emoji: "🌅", icon: Coffee,         color: "amber" },
+  { id: "lunch",     label: "Lunch",     emoji: "☀️",  icon: UtensilsCrossed, color: "emerald" },
+  { id: "snack",     label: "Snack",     emoji: "🍎",  icon: Apple,          color: "orange" },
+  { id: "dinner",    label: "Dinner",    emoji: "🌙",  icon: Moon,           color: "violet" },
+];
+
+const MEAL_ROW_COLORS = {
+  amber:   "text-amber-400 bg-amber-500/5",
+  emerald: "text-emerald-400 bg-emerald-500/5",
+  orange:  "text-orange-400 bg-orange-500/5",
+  violet:  "text-violet-400 bg-violet-500/5",
+};
 const DAYS_OF_WEEK = [
   "Sunday",
   "Monday",
@@ -29,11 +41,7 @@ const MealPlanner = () => {
   // Confirm Modal state
   const [deleteMealId, setDeleteMealId] = useState(null);
 
-  useEffect(() => {
-    loadMealPlanAndRecipes();
-  }, [weekStart]);
-
-  const loadMealPlanAndRecipes = async () => {
+  const loadMealPlanAndRecipes = useCallback(async () => {
     const startDate = format(weekStart, "yyyy-MM-dd");
     const endDate = format(addDays(weekStart, 6), "yyyy-MM-dd");
 
@@ -69,7 +77,11 @@ const MealPlanner = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [weekStart]);
+
+  useEffect(() => {
+    loadMealPlanAndRecipes();
+  }, [loadMealPlanAndRecipes]);
 
   const handleAddMeal = (date, mealType) => {
     setSelectedSlot({ date, mealType });
@@ -168,32 +180,37 @@ const MealPlanner = () => {
             </div>
 
             {/* Meal Rows */}
-            {MEAL_TYPES.map((mealType) => (
+            {MEAL_TYPES.map((meal) => (
               <div
-                key={mealType}
+                key={meal.id}
                 className="grid grid-cols-8 border-b border-slate-800/80 last:border-b-0"
               >
-                <div className="p-4 font-bold text-xs text-emerald-400 uppercase tracking-wider border-r border-slate-800 bg-slate-900/40 flex items-center">
-                  {mealType}
+                {/* Row Label */}
+                <div
+                  className={`p-3 border-r border-slate-800 flex flex-col items-center justify-center gap-1.5 bg-slate-900/40 ${MEAL_ROW_COLORS[meal.color]}`}
+                >
+                  <meal.icon className="w-4 h-4" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider leading-none">{meal.label}</span>
                 </div>
+
                 {DAYS_OF_WEEK.map((_, dayIndex) => {
                   const date = format(addDays(weekStart, dayIndex), "yyyy-MM-dd");
                   const dayMeals = getDayMeals(dayIndex);
-                  const meal = dayMeals[mealType];
+                  const mealEntry = dayMeals[meal.id];
 
                   return (
                     <div
                       key={dayIndex}
                       className="p-2.5 border-r border-slate-800/80 last:border-r-0 min-h-24 hover:bg-slate-900/40 transition-colors"
                     >
-                      {meal ? (
+                      {mealEntry ? (
                         <div className="relative group h-full">
                           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 h-full flex flex-col justify-between">
                             <p className="text-xs font-bold text-emerald-300 line-clamp-2 leading-snug">
-                              {meal.recipe_name}
+                              {mealEntry.recipe_name}
                             </p>
                             <button
-                              onClick={() => setDeleteMealId(meal.id || meal._id)}
+                              onClick={() => setDeleteMealId(mealEntry.id || mealEntry._id)}
                               className="absolute top-1.5 right-1.5 p-1 bg-slate-950 text-slate-400 hover:text-red-400 rounded-md opacity-0 group-hover:opacity-100 transition-opacity border border-slate-800"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -202,7 +219,7 @@ const MealPlanner = () => {
                         </div>
                       ) : (
                         <button
-                          onClick={() => handleAddMeal(date, mealType)}
+                          onClick={() => handleAddMeal(date, meal.id)}
                           className="w-full h-full border border-dashed border-slate-800 hover:border-emerald-500/40 rounded-xl flex items-center justify-center text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/5 transition-all group"
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -289,8 +306,11 @@ const AddMealModal = ({ date, mealType, recipes, onClose, onSuccess }) => {
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
           <div>
             <h2 className="text-xl font-bold text-white font-heading">Schedule Meal</h2>
-            <p className="text-xs text-slate-400 capitalize mt-0.5">
-              {format(new Date(date), "EEEE, MMM d")} • <span className="text-emerald-400 font-bold">{mealType}</span>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {format(new Date(date), "EEEE, MMM d")} •{" "}
+              <span className="text-emerald-400 font-bold capitalize">
+                {MEAL_TYPES.find((m) => m.id === mealType)?.label ?? mealType}
+              </span>
             </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">

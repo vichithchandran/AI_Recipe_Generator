@@ -1,19 +1,41 @@
 import { useState, useEffect } from "react";
-import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2 } from "lucide-react";
+import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2, Coffee, UtensilsCrossed, Apple, Moon, ShoppingBag } from "lucide-react";
 import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
 import { recipeService } from "../services/recipeService";
 import { userService } from "../services/userService";
+import { pantryService } from "../services/pantryService";
 
 const CUISINES = [
   "Any",
+  "Indian (All Regions)",
   "Kerala",
   "South Indian",
   "Tamil Nadu",
   "Karnataka",
-  "Andhra",
-  "Indian",
+  "Andhra Pradesh",
+  "Telangana",
   "North Indian",
+  "Punjabi",
+  "Bengali (West Bengal)",
+  "Maharashtrian",
+  "Gujarati",
+  "Rajasthani",
+  "Goan",
+  "Kashmiri",
+  "Odia (Odisha)",
+  "Assamese",
+  "Bihari",
+  "Hyderabadi",
+  "Chettinad",
+  "Awadhi / Mughlai",
+  "Himachali",
+  "Uttarakhand / Kumaoni",
+  "Naga",
+  "Manipuri",
+  "Meghalayan",
+  "Sikkimese",
+  "Indo-Chinese",
   "Italian",
   "Mexican",
   "Chinese",
@@ -22,6 +44,7 @@ const CUISINES = [
   "French",
   "Mediterranean",
   "American",
+  "Other",
 ];
 const DIETARY_OPTIONS = [
   "Non-Vegetarian",
@@ -38,6 +61,20 @@ const COOKING_TIMES = [
   { value: "long", label: "Long (>60m)" },
 ];
 
+const MEAL_TYPES = [
+  { id: "breakfast", label: "Breakfast", emoji: "🌅", icon: Coffee, color: "amber" },
+  { id: "lunch",     label: "Lunch",     emoji: "☀️",  icon: UtensilsCrossed, color: "emerald" },
+  { id: "snack",    label: "Snack",     emoji: "🍎",  icon: Apple, color: "orange" },
+  { id: "dinner",   label: "Dinner",    emoji: "🌙",  icon: Moon,  color: "violet" },
+];
+
+const MEAL_TYPE_COLORS = {
+  amber:   { active: "bg-amber-500/20 border-amber-400/60 text-amber-300",   icon: "text-amber-400" },
+  emerald: { active: "bg-emerald-500/20 border-emerald-400/60 text-emerald-300", icon: "text-emerald-400" },
+  orange:  { active: "bg-orange-500/20 border-orange-400/60 text-orange-300",  icon: "text-orange-400" },
+  violet:  { active: "bg-violet-500/20 border-violet-400/60 text-violet-300",  icon: "text-violet-400" },
+};
+
 const RecipeGenerator = () => {
   const [ingredients, setIngredients] = useState([]);
   const [inputValue, setInputValue] = useState("");
@@ -49,34 +86,41 @@ const RecipeGenerator = () => {
   const [usePantry, setUsePantry] = useState(false);
   const [cuisineType, setCuisineType] = useState("Any");
   const [dietaryRestrictions, setDietaryRestrictions] = useState([]);
+  const [mealType, setMealType] = useState(null); // null = not specified
   const [servings, setServings] = useState(4);
   const [cookingTime, setCookingTime] = useState("medium");
   const [generating, setGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
+    const loadUserPreferences = async () => {
+      try {
+        const res = await userService.getPreferences();
+        if (res.success && res.data) {
+          if (res.data.dietary_restrictions && res.data.dietary_restrictions.length > 0) {
+            setDietaryRestrictions(res.data.dietary_restrictions);
+          }
+          if (res.data.preferred_cuisines && res.data.preferred_cuisines.length > 0) {
+            setCuisineType(res.data.preferred_cuisines[0]);
+          }
+          if (res.data.default_servings) {
+            setServings(res.data.default_servings);
+          }
+          // Pre-select first meal preference if user has saved any
+          if (res.data.meal_preferences && res.data.meal_preferences.length > 0) {
+            setMealType(res.data.meal_preferences[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading preferences:", error);
+      }
+    };
+
     loadUserPreferences();
   }, []);
-
-  const loadUserPreferences = async () => {
-    try {
-      const res = await userService.getPreferences();
-      if (res.success && res.data) {
-        if (res.data.dietary_restrictions && res.data.dietary_restrictions.length > 0) {
-          setDietaryRestrictions(res.data.dietary_restrictions);
-        }
-        if (res.data.preferred_cuisines && res.data.preferred_cuisines.length > 0) {
-          setCuisineType(res.data.preferred_cuisines[0]);
-        }
-        if (res.data.default_servings) {
-          setServings(res.data.default_servings);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading preferences:", error);
-    }
-  };
 
   const parseAndAddIngredients = (rawText) => {
     if (!rawText || !rawText.trim()) return;
@@ -178,6 +222,8 @@ const RecipeGenerator = () => {
 
     setGenerating(true);
     setGeneratedRecipe(null);
+    setImageLoaded(false);
+    setImageError(false);
 
     try {
       const res = await recipeService.generateRecipe({
@@ -185,6 +231,7 @@ const RecipeGenerator = () => {
         usePantry,
         cuisineType,
         dietaryRestrictions,
+        mealType: mealType || undefined,
         servings,
         cookingTime,
         targetDish: targetDish.trim(),
@@ -193,6 +240,17 @@ const RecipeGenerator = () => {
       if (res.success && res.data) {
         setGeneratedRecipe(res.data);
         toast.success("AI Recipe generated successfully!");
+        // Clear all inputs and reset preferences after successful generation
+        setIngredients([]);
+        setInputValue("");
+        setBulkText("");
+        setTargetDish("");
+        setUsePantry(false);
+        setCuisineType("Any");
+        setDietaryRestrictions([]);
+        setMealType(null);
+        setServings(4);
+        setCookingTime("medium");
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to generate recipe");
@@ -240,7 +298,7 @@ const RecipeGenerator = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
             <Wand2 className="w-8 h-8 text-slate-950" />
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-heading">
@@ -396,6 +454,40 @@ const RecipeGenerator = () => {
             <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 space-y-5">
               <h2 className="text-base font-bold text-white font-heading">Preferences</h2>
 
+              {/* Meal Type Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Meal Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {MEAL_TYPES.map((meal) => {
+                    const isActive = mealType === meal.id;
+                    const colors = MEAL_TYPE_COLORS[meal.color];
+                    const Icon = meal.icon;
+                    return (
+                      <button
+                        key={meal.id}
+                        type="button"
+                        onClick={() => setMealType(isActive ? null : meal.id)}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                          isActive
+                            ? colors.active
+                            : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                        }`}
+                      >
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? colors.icon : "text-slate-600"}`} />
+                        <span>{meal.emoji} {meal.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {mealType && (
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    ✨ AI will optimise the recipe for <span className="text-slate-300 font-semibold capitalize">{mealType}</span>
+                  </p>
+                )}
+              </div>
+
               {/* Specific Target Dish Textarea */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -525,7 +617,7 @@ const RecipeGenerator = () => {
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold py-4 rounded-2xl shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               {generating ? (
                 <>
@@ -547,14 +639,27 @@ const RecipeGenerator = () => {
               <div className="glass-panel rounded-3xl p-8 border border-slate-800/80 shadow-2xl space-y-6 animate-fade-in">
                 {/* Generated Recipe Image */}
                 {(generatedRecipe.imageUrl || generatedRecipe.image_url) && (
-                  <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-slate-800 shadow-md">
+                  <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-slate-800 shadow-md bg-slate-900">
+                    {/* Skeleton loader shown while image is loading */}
+                    {!imageLoaded && !imageError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 animate-pulse gap-2">
+                        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-2xl">🍽️</div>
+                        <p className="text-slate-500 text-xs font-medium">Loading dish image...</p>
+                      </div>
+                    )}
+                    {/* Fallback shown if image fails to load */}
+                    {imageError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-linear-to-br from-slate-900 to-slate-800 gap-2">
+                        <span className="text-5xl">🍽️</span>
+                        <p className="text-slate-400 text-xs font-semibold">{generatedRecipe.name}</p>
+                      </div>
+                    )}
                     <img
                       src={generatedRecipe.imageUrl || generatedRecipe.image_url}
                       alt={generatedRecipe.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
+                      className={`w-full h-full object-cover transition-opacity duration-500 ${imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'}`}
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => { setImageLoaded(true); setImageError(true); }}
                     />
                   </div>
                 )}
@@ -642,7 +747,7 @@ const RecipeGenerator = () => {
                   <button
                     onClick={handleSaveRecipe}
                     disabled={saving}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Bookmark className="w-4 h-4" />
                     {saving ? "Saving Recipe..." : "Save Recipe to Collection"}
@@ -656,7 +761,7 @@ const RecipeGenerator = () => {
                 </div>
               </div>
             ) : (
-              <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800/80 h-full flex flex-col items-center justify-center min-h-[450px]">
+              <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800/80 h-full flex flex-col items-center justify-center min-h-112.5">
                 <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-600">
                   <Sparkles className="w-8 h-8" />
                 </div>

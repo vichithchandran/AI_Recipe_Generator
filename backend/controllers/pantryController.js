@@ -30,11 +30,32 @@ export const getPantryItems = async (req, res, next) => {
   }
 };
 
-// @desc    Add a new pantry item
+// @desc    Add a new pantry item or bulk add multiple items
 // @route   POST /api/pantry
 // @access  Private
 export const addPantryItem = async (req, res, next) => {
   try {
+    // Support bulk insertion if an array of items is provided
+    if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+      const formattedItems = req.body.items.map((item) => ({
+        user: req.user._id,
+        name: item.name,
+        quantity: item.quantity !== undefined ? item.quantity : 1,
+        unit: item.unit || 'pieces',
+        category: item.category || 'Other',
+        expiry_date: item.expiry_date || null,
+        is_running_low: item.is_running_low || false,
+      }));
+
+      const createdItems = await PantryItem.insertMany(formattedItems);
+
+      return res.status(201).json({
+        success: true,
+        count: createdItems.length,
+        data: createdItems,
+      });
+    }
+
     const { name, quantity, unit, category, expiry_date, is_running_low } = req.body;
 
     const item = await PantryItem.create({

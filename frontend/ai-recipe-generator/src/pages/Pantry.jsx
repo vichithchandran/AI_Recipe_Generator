@@ -1,8 +1,8 @@
-import { AlertCircle, Calendar, Plus, Search, X, UtensilsCrossed, AlertTriangle, ShieldCheck, Flame, Pencil } from "lucide-react";
+import { AlertCircle, Calendar, Plus, Search, X, UtensilsCrossed, AlertTriangle, ShieldCheck, Flame, Pencil, Trash2, ListPlus, FileText, PlusCircle } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { pantryService } from "../services/pantryService";
@@ -25,15 +25,12 @@ const Pantry = () => {
   const [expiringItems, setExpiringItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [removingAllExpired, setRemovingAllExpired] = useState(false);
 
   // Confirm Modal state
   const [deleteTargetId, setDeleteTargetId] = useState(null);
 
-  useEffect(() => {
-    fetchPantryData();
-  }, [searchQuery, selectedCategory]);
-
-  const fetchPantryData = async () => {
+  const fetchPantryData = useCallback(async () => {
     try {
       setLoading(true);
       const [itemsRes, expiringRes] = await Promise.all([
@@ -53,7 +50,11 @@ const Pantry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    fetchPantryData();
+  }, [fetchPantryData]);
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
@@ -69,6 +70,34 @@ const Pantry = () => {
       toast.error(error.response?.data?.message || "Failed to delete item");
     } finally {
       setDeleteTargetId(null);
+    }
+  };
+
+  // Derived expired items list
+  const expiredItems = items.filter(
+    (item) => item.expiry_date && new Date(item.expiry_date) < new Date()
+  );
+
+  const removeAllExpired = async () => {
+    if (expiredItems.length === 0) return;
+    setRemovingAllExpired(true);
+    let removed = 0;
+    const errors = [];
+    for (const item of expiredItems) {
+      try {
+        const res = await pantryService.deletePantryItem(item.id || item._id);
+        if (res.success) removed++;
+      } catch (err) {
+        errors.push(item.name);
+      }
+    }
+    setRemovingAllExpired(false);
+    if (removed > 0) {
+      toast.success(`Removed ${removed} expired item${removed > 1 ? "s" : ""} from pantry`);
+      fetchPantryData();
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to remove: ${errors.join(", ")}`);
     }
   };
 
@@ -120,6 +149,63 @@ const Pantry = () => {
             </div>
           </div>
         </div>
+
+        {/* Expired Items Section */}
+        {expiredItems.length > 0 && (
+          <div className="bg-red-950/30 border-2 border-red-500/70 rounded-2xl p-5 mb-6 backdrop-blur-xl shadow-lg shadow-red-500/10">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-red-200 font-bold text-base">
+                    Expired Items ({expiredItems.length})
+                  </h3>
+                  <p className="text-xs text-red-300/70 mt-0.5">
+                    These items have passed their expiry date and should be removed.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={removeAllExpired}
+                disabled={removingAllExpired}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/35 border border-red-500/50 text-red-300 font-bold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {removingAllExpired ? "Removing..." : "Remove All Expired"}
+              </button>
+            </div>
+
+            <ul className="space-y-2">
+              {expiredItems.map((item) => (
+                <li
+                  key={item.id || item._id}
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-red-950/40 border border-red-500/30"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                    <span className="text-sm font-semibold text-red-200 truncate">{item.name}</span>
+                    <span className="text-[11px] text-slate-500 capitalize shrink-0">{item.category}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-1 text-[11px] text-red-400 font-medium">
+                      <Calendar className="w-3 h-3" />
+                      <span>Expired {format(new Date(item.expiry_date), "MMM dd, yyyy")}</span>
+                    </div>
+                    <button
+                      onClick={() => setDeleteTargetId(item.id || item._id)}
+                      className="p-1.5 rounded-lg text-red-400 hover:text-red-200 hover:bg-red-500/20 transition-colors"
+                      title="Remove expired item"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Expiring Soon Alert */}
         {expiringItems.length > 0 && (
@@ -364,6 +450,10 @@ const PantryItemCard = ({ item, onEdit, onDelete, isExpiring }) => {
 };
 
 const AddItemModal = ({ onClose, onSuccess }) => {
+  const [addMode, setAddMode] = useState("single"); // 'single' | 'bulk'
+  const [submitting, setSubmitting] = useState(false);
+
+  // Single Item State
   const [formData, setFormData] = useState({
     name: "",
     quantity: "",
@@ -373,24 +463,112 @@ const AddItemModal = ({ onClose, onSuccess }) => {
     is_running_low: false,
   });
 
-  const [submitting, setSubmitting] = useState(false);
+  // Bulk Add State
+  const [bulkRawText, setBulkRawText] = useState("");
+  const [bulkItems, setBulkItems] = useState([
+    { name: "", quantity: 1, unit: "pieces", category: "Other" },
+  ]);
+
+  // Parse raw text into structured bulk items
+  const parseBulkText = () => {
+    if (!bulkRawText.trim()) return;
+
+    // Split by newlines, commas, or semicolons
+    const lines = bulkRawText
+      .split(/[\n,;]+/)
+      .map((l) => l.replace(/^[\s•\-\d\.]+/g, "").trim())
+      .filter((l) => l.length > 0);
+
+    if (lines.length === 0) return;
+
+    const parsed = lines.map((line) => {
+      // Simple quantity/unit regex parsing e.g. "2kg Basmati Rice" -> qty:2, unit:kg, name:Basmati Rice
+      const match = line.match(/^(\d+(?:\.\d+)?)\s*(kg|g|l|ml|pieces|cups|tbsp|tsp)?\s+(.+)$/i);
+      if (match) {
+        return {
+          name: match[3].trim(),
+          quantity: parseFloat(match[1]),
+          unit: (match[2] || "pieces").toLowerCase(),
+          category: "Other",
+        };
+      }
+      return {
+        name: line,
+        quantity: 1,
+        unit: "pieces",
+        category: "Other",
+      };
+    });
+
+    setBulkItems(parsed);
+    toast.success(`Parsed ${parsed.length} items! You can review or adjust them below.`);
+  };
+
+  const handleAddBulkRow = () => {
+    setBulkItems([...bulkItems, { name: "", quantity: 1, unit: "pieces", category: "Other" }]);
+  };
+
+  const handleRemoveBulkRow = (index) => {
+    if (bulkItems.length === 1) {
+      setBulkItems([{ name: "", quantity: 1, unit: "pieces", category: "Other" }]);
+      return;
+    }
+    setBulkItems(bulkItems.filter((_, i) => i !== index));
+  };
+
+  const handleBulkItemChange = (index, field, value) => {
+    const updated = [...bulkItems];
+    updated[index][field] = value;
+    setBulkItems(updated);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      const itemData = {
-        ...formData,
-        quantity: parseFloat(formData.quantity),
-        expiry_date: formData.expiry_date || null,
-      };
+      if (addMode === "single") {
+        if (!formData.name.trim()) {
+          toast.error("Please enter item name");
+          setSubmitting(false);
+          return;
+        }
 
-      const res = await pantryService.addPantryItem(itemData);
-      if (res.success) {
-        toast.success("Item added to pantry");
-        onSuccess();
-        onClose();
+        const itemData = {
+          ...formData,
+          quantity: parseFloat(formData.quantity) || 1,
+          expiry_date: formData.expiry_date || null,
+        };
+
+        const res = await pantryService.addPantryItem(itemData);
+        if (res.success) {
+          toast.success("Item added to pantry");
+          onSuccess();
+          onClose();
+        }
+      } else {
+        // Bulk mode submit
+        const validItems = bulkItems
+          .filter((i) => i.name && i.name.trim().length > 0)
+          .map((i) => ({
+            name: i.name.trim(),
+            quantity: parseFloat(i.quantity) || 1,
+            unit: i.unit || "pieces",
+            category: i.category || "Other",
+          }));
+
+        if (validItems.length === 0) {
+          toast.error("Please enter at least one valid item name");
+          setSubmitting(false);
+          return;
+        }
+
+        const res = await pantryService.addPantryItem({ items: validItems });
+        if (res.success) {
+          toast.success(`Added ${res.count || validItems.length} items to pantry!`);
+          onSuccess();
+          onClose();
+        }
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to add pantry item");
@@ -401,102 +579,241 @@ const AddItemModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-800 shadow-2xl">
-        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
-          <h2 className="text-xl font-bold text-white font-heading">Add Pantry Item</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+      <div className="glass-panel rounded-3xl max-w-xl w-full p-6 border border-slate-800 shadow-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-white font-heading">Add Pantry Items</h2>
+            <p className="text-xs text-slate-400">Add individual items or multiple items in one go</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Item Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm"
-              placeholder="e.g. Tomatoes"
-              required
-            />
-          </div>
+        {/* Mode Selector Tabs */}
+        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 mb-4 text-xs font-semibold shrink-0">
+          <button
+            type="button"
+            onClick={() => setAddMode("single")}
+            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              addMode === "single"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Single Item</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddMode("bulk")}
+            className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              addMode === "bulk"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <ListPlus className="w-3.5 h-3.5" />
+            <span>Add Multiple (Bulk)</span>
+          </button>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Quantity</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
-                placeholder="2"
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1">
+          {addMode === "single" ? (
+            /* Single Item Form */
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Item Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm"
+                  placeholder="e.g. Tomatoes"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Quantity</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
+                    placeholder="2"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Unit</label>
+                  <select
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  >
+                    <option value="pieces">Pieces</option>
+                    <option value="kg">Kilograms</option>
+                    <option value="g">Grams</option>
+                    <option value="l">Liters</option>
+                    <option value="ml">Milliliters</option>
+                    <option value="cups">Cups</option>
+                    <option value="tbsp">Tablespoons</option>
+                    <option value="tsp">Teaspoons</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Category</label>
+                <select
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Expiry Date (Optional)</label>
+                <input
+                  type="date"
+                  value={formData.expiry_date}
+                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="running-low"
+                  checked={formData.is_running_low}
+                  onChange={(e) => setFormData({ ...formData, is_running_low: e.target.checked })}
+                  className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="running-low" className="text-xs font-medium text-slate-300 cursor-pointer">
+                  Mark as running low
+                </label>
+              </div>
+            </>
+          ) : (
+            /* Bulk Multiple Items Form */
+            <div className="space-y-4">
+              {/* Quick Paste Text Area */}
+              <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300 uppercase">
+                    Quick Text Paste (Optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={parseBulkText}
+                    disabled={!bulkRawText.trim()}
+                    className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Parse into List</span>
+                  </button>
+                </div>
+                <textarea
+                  rows={3}
+                  value={bulkRawText}
+                  onChange={(e) => setBulkRawText(e.target.value)}
+                  placeholder={`Paste multiple items separated by commas or lines...\nExample:\nTomatoes, 2kg Rice, Garlic, Milk, 500g Sugar`}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 outline-none text-xs resize-none"
+                />
+              </div>
+
+              {/* Dynamic Items Table */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-slate-300 uppercase">
+                    Pantry Items List ({bulkItems.filter((i) => i.name.trim()).length} ready)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddBulkRow}
+                    className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Item Row</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {bulkItems.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800">
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => handleBulkItemChange(index, "name", e.target.value)}
+                        placeholder="Item name (e.g. Rice)"
+                        className="flex-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none focus:border-emerald-500"
+                        required
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={item.quantity}
+                        onChange={(e) => handleBulkItemChange(index, "quantity", e.target.value)}
+                        className="w-16 px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none text-center"
+                      />
+                      <select
+                        value={item.unit}
+                        onChange={(e) => handleBulkItemChange(index, "unit", e.target.value)}
+                        className="w-24 px-1.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none"
+                      >
+                        <option value="pieces">Pcs</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="l">l</option>
+                        <option value="ml">ml</option>
+                        <option value="cups">cups</option>
+                        <option value="tbsp">tbsp</option>
+                        <option value="tsp">tsp</option>
+                      </select>
+                      <select
+                        value={item.category}
+                        onChange={(e) => handleBulkItemChange(index, "category", e.target.value)}
+                        className="w-28 px-1.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs outline-none"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBulkRow(index)}
+                        className="p-1 text-slate-500 hover:text-red-400 transition-colors cursor-pointer shrink-0"
+                        title="Remove row"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Unit</label>
-              <select
-                className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              >
-                <option value="pieces">Pieces</option>
-                <option value="kg">Kilograms</option>
-                <option value="g">Grams</option>
-                <option value="l">Liters</option>
-                <option value="ml">Milliliters</option>
-                <option value="cups">Cups</option>
-                <option value="tbsp">Tablespoons</option>
-                <option value="tsp">Teaspoons</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Category</label>
-            <select
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Expiry Date (Optional)</label>
-            <input
-              type="date"
-              value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 outline-none text-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-2">
-            <input
-              type="checkbox"
-              id="running-low"
-              checked={formData.is_running_low}
-              onChange={(e) => setFormData({ ...formData, is_running_low: e.target.checked })}
-              className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700 rounded focus:ring-emerald-500"
-            />
-            <label htmlFor="running-low" className="text-xs font-medium text-slate-300 cursor-pointer">
-              Mark as running low
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-slate-800">
+          {/* Action Footer */}
+          <div className="flex gap-3 pt-4 border-t border-slate-800 shrink-0">
             <button
               type="button"
-              className="flex-1 px-4 py-2.5 border border-slate-800 text-slate-300 rounded-xl hover:bg-slate-900 font-semibold text-xs transition-colors"
+              className="flex-1 px-4 py-2.5 border border-slate-800 text-slate-300 rounded-xl hover:bg-slate-900 font-semibold text-xs transition-colors cursor-pointer"
               onClick={onClose}
             >
               Cancel
@@ -504,9 +821,13 @@ const AddItemModal = ({ onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl font-bold text-xs transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl font-bold text-xs transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {submitting ? "Adding..." : "Add Item"}
+              {submitting
+                ? "Adding..."
+                : addMode === "bulk"
+                ? `Add ${bulkItems.filter((i) => i.name.trim()).length} Items to Pantry`
+                : "Add Item"}
             </button>
           </div>
         </form>
