@@ -730,7 +730,7 @@ const AddItemModal = ({ onClose, onSuccess }) => {
                   value={bulkRawText}
                   onChange={(e) => setBulkRawText(e.target.value)}
                   placeholder={`Paste multiple items separated by commas or lines...\nExample:\nTomatoes, 2kg Rice, Garlic, Milk, 500g Sugar`}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 outline-none text-xs resize-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-xs resize-y min-h-[60px] transition-all"
                 />
               </div>
 

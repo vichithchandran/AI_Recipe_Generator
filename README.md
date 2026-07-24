@@ -29,16 +29,20 @@ A **full-stack intelligent recipe management platform** powered by **Groq (Llama
 - Generates gourmet **HD food photography images** for every recipe automatically via Pollinations AI
 - Auto-resets form inputs upon successful recipe generation for a clean repeat flow
 
-### 📝 Custom Recipe Creation & Management (New!)
-- **Add Your Own Recipes**: Create custom recipes directly in **My Recipes**
+### 📝 Custom Recipe Creation & Combo Meals (Updated!)
+- **Add Single Dish or Combo Meals**: Choose between a **Single Dish Recipe** or a **Combo Meal (Multi-Item)** (e.g., Thalis, Burger & Fries combos, Breakfast sets)
+- **Multi-Item Combo Management**: Create and manage individual dish items (*Item 1: Butter Chicken*, *Item 2: Garlic Naan*, *Item 3: Jeera Rice*) with per-item dish names, ingredients, and step-by-step instructions
+- **✨ AI Auto-Fetch Item Ingredients**: One-click AI ingredient auto-fetch per individual dish item or single dish recipe name
+- **🍽️ Itemized Combo Recipe Detail Page**: Interactive dish tabs allowing users to view ingredients and cooking steps per dish item or view all combined
 - **Ingredients Used**: Add custom ingredients with specific quantities and units (`g`, `kg`, `ml`, `l`, `pcs`, `cups`, `tbsp`, `tsp`)
 - **Dish Photography**: Upload/paste dish image URL or click **`✨ AI Generate Image`** to automatically create gourmet food photos
-- **Step-by-Step Instructions**: Add numbered cooking instructions
+- **Step-by-Step Instructions**: Add numbered cooking instructions with vertical drag-resizing textareas
 - **Video References**: Attach YouTube cooking tutorial URLs with video badges & reference player card on detail pages
-- **⚡ AI Nutrition per Serving Calculator**: One-click AI calculation of Calories, Protein, Carbs, Fats, and Fiber
+- **⚡ AI Nutrition per Serving Calculator**: One-click AI calculation of Calories, Protein, Carbs, Fats, and Fiber across single or combo meal ingredients
 - **Dietary Categories**: Tag recipes with Non-Vegetarian 🔴, Vegetarian 🟢, Vegan, Gluten-Free, Dairy-Free, Keto, Paleo with FSSAI indicator symbols
+- **🎨 Flawless UI Focus & Draggable Textareas**: Smooth unclipped emerald focus rings on all inputs, select boxes, and textareas with vertical height drag adjustment
 
-### 🇮🇳 All Indian State & Regional Cuisines (New!)
+### 🇮🇳 All Indian State & Regional Cuisines
 - Comprehensive support for all **28+ Indian States & Regional Cuisines**:
   - *Kerala, South Indian, Tamil Nadu, Karnataka, Andhra Pradesh, Telangana, North Indian, Punjabi, Bengali (West Bengal), Maharashtrian, Gujarati, Rajasthani, Goan, Kashmiri, Odia (Odisha), Assamese, Bihari, Hyderabadi, Chettinad, Awadhi / Mughlai, Himachali, Uttarakhand / Kumaoni, Naga, Manipuri, Meghalayan, Sikkimese, Indo-Chinese*
   - International cuisines: *Italian, Mexican, Chinese, Japanese, Thai, French, Mediterranean, American, Other*

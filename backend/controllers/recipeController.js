@@ -70,8 +70,36 @@ export const getRecipeById = async (req, res, next) => {
 // @access  Private
 export const createRecipe = async (req, res, next) => {
   try {
+    const { is_combo, items } = req.body;
+    let ingredients = req.body.ingredients || [];
+    let instructions = req.body.instructions || [];
+
+    if (is_combo && Array.isArray(items) && items.length > 0) {
+      if (ingredients.length === 0) {
+        items.forEach((item) => {
+          if (Array.isArray(item.ingredients)) {
+            ingredients.push(...item.ingredients);
+          }
+        });
+      }
+      if (instructions.length === 0) {
+        items.forEach((item) => {
+          const prefix = item.name ? `[${item.name}] ` : '';
+          if (Array.isArray(item.instructions)) {
+            item.instructions.forEach((step) => {
+              if (step && step.trim()) {
+                instructions.push(`${prefix}${step.trim()}`);
+              }
+            });
+          }
+        });
+      }
+    }
+
     const recipeData = {
       ...req.body,
+      ingredients,
+      instructions,
       user: req.user._id,
     };
 

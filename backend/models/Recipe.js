@@ -20,8 +20,22 @@ const nutritionSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const comboItemSubSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    ingredients: [ingredientSubSchema],
+    instructions: [{ type: String }],
+  },
+  { _id: false }
+);
+
 const recipeSchema = new mongoose.Schema(
   {
+    is_combo: {
+      type: Boolean,
+      default: false,
+    },
+    items: [comboItemSubSchema],
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

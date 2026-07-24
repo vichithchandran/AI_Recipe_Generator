@@ -19,6 +19,23 @@
     font-family: var(--font-heading);
     letter-spacing: -0.02em;
   }
+
+  input, select, textarea {
+    outline: none !important;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
 }
 
 /* Custom Scrollbar */

@@ -404,7 +404,7 @@ const RecipeGenerator = () => {
                     value={bulkText}
                     onChange={(e) => setBulkText(e.target.value)}
                     placeholder={`Paste or type multiple ingredients list...\n\nExample:\n100g Basmati Rice\n200g Paneer\nGarlic, Ginger, Green Chillies`}
-                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs leading-relaxed resize-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-xs leading-relaxed resize-y min-h-[80px] transition-all"
                   />
                   <button
                     type="button"
@@ -522,7 +522,7 @@ const RecipeGenerator = () => {
                   value={targetDish}
                   onChange={(e) => setTargetDish(e.target.value)}
                   placeholder="Mention a specific dish (e.g. Kerala Karimeen Curry, Palak Paneer, Chicken Biryani)... AI will auto-fetch ingredients!"
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/50 outline-none text-xs leading-relaxed resize-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-xs leading-relaxed resize-y min-h-[60px] transition-all"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   ✨ Enter any dish name above — AI will automatically determine and fetch the authentic ingredients!

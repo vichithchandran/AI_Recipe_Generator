@@ -27,6 +27,11 @@ export const recipeService = {
     return response.data;
   },
 
+  fetchIngredients: async (dishName, cuisineType = 'Any', dietaryRestrictions = []) => {
+    const response = await api.post('/recipes/fetch-ingredients', { dishName, cuisineType, dietaryRestrictions });
+    return response.data;
+  },
+
   fetchIngredientsForDish: async (dishName, cuisineType = 'Any', dietaryRestrictions = []) => {
     const response = await api.post('/recipes/fetch-ingredients', { dishName, cuisineType, dietaryRestrictions });
     return response.data;

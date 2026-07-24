@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer, Video, ExternalLink } from "lucide-react";
+import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer, Video, ExternalLink, Layers, Utensils } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
@@ -15,6 +15,7 @@ const RecipeDetail = () => {
   const [checkedIngredients, setCheckedIngredients] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeComboTab, setActiveComboTab] = useState("all");
 
   useEffect(() => {
     const loadRecipe = async () => {
@@ -82,6 +83,19 @@ const RecipeDetail = () => {
   const totalTime = (recipe.prep_time || recipe.prepTime || 0) + (recipe.cook_time || recipe.cookTime || 0);
   const originalServings = recipe.servings || 4;
   const cookingTips = recipe.cooking_tips || recipe.cookingTips || [];
+  const isComboMeal = recipe.is_combo || (recipe.items && recipe.items.length > 0);
+
+  // Ingredients and Instructions based on activeComboTab selection
+  let displayIngredients = recipe.ingredients || [];
+  let displayInstructions = recipe.instructions || [];
+
+  if (isComboMeal && activeComboTab !== "all" && typeof activeComboTab === "number") {
+    const selectedItem = recipe.items[activeComboTab];
+    if (selectedItem) {
+      displayIngredients = selectedItem.ingredients || [];
+      displayInstructions = selectedItem.instructions || [];
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-16">
@@ -137,6 +151,12 @@ const RecipeDetail = () => {
 
             <div className={`${(recipe.image_url || recipe.imageUrl) ? 'md:col-span-7' : 'md:col-span-12'} space-y-4`}>
               <div className="flex flex-wrap items-center gap-2">
+                {isComboMeal && (
+                  <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-full text-xs font-bold flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                    Combo Meal ({recipe.items?.length || 2} Items)
+                  </span>
+                )}
                 {recipe.cuisine_type && (
                   <span className="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-semibold">
                     {recipe.cuisine_type}
@@ -241,6 +261,48 @@ const RecipeDetail = () => {
           </div>
         </div>
 
+        {/* Combo Meal Items Navigation Bar */}
+        {isComboMeal && recipe.items && recipe.items.length > 0 && (
+          <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Combo Meal Dishes ({recipe.items.length})
+              </h3>
+              <span className="text-[11px] text-slate-400 ml-auto">Click a dish to filter ingredients & instructions</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveComboTab("all")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeComboTab === "all"
+                    ? "bg-emerald-500 text-slate-950 shadow-md"
+                    : "bg-slate-900 text-slate-300 border border-slate-800 hover:text-white"
+                }`}
+              >
+                <ChefHat className="w-3.5 h-3.5" />
+                <span>All Dishes Combined</span>
+              </button>
+
+              {recipe.items.map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveComboTab(idx)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeComboTab === idx
+                      ? "bg-emerald-500/20 border border-emerald-500/50 text-emerald-300"
+                      : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-white"
+                  }`}
+                >
+                  <Utensils className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{item.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recipe Content Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Ingredients Section (5 Cols on LG) */}
@@ -249,49 +311,52 @@ const RecipeDetail = () => {
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <ChefHat className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-base font-bold text-white font-heading">Ingredients Checklist</h2>
+                  <h2 className="text-base font-bold text-white font-heading">
+                    {typeof activeComboTab === "number" && recipe.items?.[activeComboTab]?.name
+                      ? `Ingredients (${recipe.items[activeComboTab].name})`
+                      : "Ingredients Checklist"}
+                  </h2>
                 </div>
                 <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                  {checkedIngredients.size}/{recipe.ingredients?.length || 0} Ready
+                  {displayIngredients.length} Items
                 </span>
               </div>
 
               {/* Ingredients List */}
               <div className="space-y-2.5">
-                {recipe.ingredients &&
-                  recipe.ingredients.map((ingredient, index) => {
-                    const adjustedQty = formatQuantity(
-                      ingredient.quantity,
-                      originalServings
-                    );
-                    const isChecked = checkedIngredients.has(index);
+                {displayIngredients.map((ingredient, index) => {
+                  const adjustedQty = formatQuantity(
+                    ingredient.quantity,
+                    originalServings
+                  );
+                  const isChecked = checkedIngredients.has(index);
 
-                    return (
-                      <label
-                        key={index}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-xs ${
-                          isChecked
-                            ? "bg-slate-900/40 border-slate-800/60 opacity-60"
-                            : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleIngredient(index)}
-                          className="w-4 h-4 text-emerald-500 bg-slate-950 border-slate-700 rounded focus:ring-emerald-500 cursor-pointer shrink-0"
-                        />
-                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                          <span className={`font-semibold truncate ${isChecked ? "line-through text-slate-500" : "text-slate-200"}`}>
-                            {ingredient.name}
-                          </span>
-                          <span className="shrink-0 px-2 py-0.5 bg-emerald-500/15 text-emerald-300 font-bold rounded-lg border border-emerald-500/25 text-[11px]">
-                            {adjustedQty} {ingredient.unit}
-                          </span>
-                        </div>
-                      </label>
-                    );
-                  })}
+                  return (
+                    <label
+                      key={index}
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-xs ${
+                        isChecked
+                          ? "bg-slate-900/40 border-slate-800/60 opacity-60"
+                          : "bg-slate-900/90 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleIngredient(index)}
+                        className="w-4 h-4 text-emerald-500 bg-slate-950 border-slate-700 rounded focus:ring-emerald-500 cursor-pointer shrink-0"
+                      />
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                        <span className={`font-semibold truncate ${isChecked ? "line-through text-slate-500" : "text-slate-200"}`}>
+                          {ingredient.name}
+                        </span>
+                        <span className="shrink-0 px-2 py-0.5 bg-emerald-500/15 text-emerald-300 font-bold rounded-lg border border-emerald-500/25 text-[11px]">
+                          {adjustedQty} {ingredient.unit}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -302,19 +367,22 @@ const RecipeDetail = () => {
             <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
               <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-800">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <h2 className="text-base font-bold text-white font-heading">Step-by-Step Instructions</h2>
+                <h2 className="text-base font-bold text-white font-heading">
+                  {typeof activeComboTab === "number" && recipe.items?.[activeComboTab]?.name
+                    ? `Instructions (${recipe.items[activeComboTab].name})`
+                    : "Step-by-Step Instructions"}
+                </h2>
               </div>
 
               <ol className="space-y-4">
-                {recipe.instructions &&
-                  recipe.instructions.map((step, index) => (
-                    <li key={index} className="flex gap-3.5 text-xs text-slate-300 p-3 rounded-2xl bg-slate-900/50 border border-slate-800/60 hover:border-slate-700/80 transition-colors">
-                      <span className="shrink-0 w-7 h-7 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center justify-center font-bold text-xs">
-                        {index + 1}
-                      </span>
-                      <p className="pt-1 leading-relaxed flex-1 text-slate-300">{step}</p>
-                    </li>
-                  ))}
+                {displayInstructions.map((step, index) => (
+                  <li key={index} className="flex gap-3.5 text-xs text-slate-300 p-3 rounded-2xl bg-slate-900/50 border border-slate-800/60 hover:border-slate-700/80 transition-colors">
+                    <span className="shrink-0 w-7 h-7 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center justify-center font-bold text-xs">
+                      {index + 1}
+                    </span>
+                    <p className="pt-1 leading-relaxed flex-1 text-slate-300">{step}</p>
+                  </li>
+                ))}
               </ol>
             </div>
 

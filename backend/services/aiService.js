@@ -189,7 +189,7 @@ CRITICAL RULES:
         const data = await response.json();
         const content = data.choices[0].message.content;
         const parsed = JSON.parse(content);
-        if (parsed.ingredients && Array.isArray(parsed.ingredients)) {
+        if (parsed && parsed.ingredients && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
           return parsed.ingredients;
         }
       }
@@ -198,14 +198,35 @@ CRITICAL RULES:
     }
   }
 
-  // 2. Try Free Open AI Engine
+  // 2. Try Gemini AI if configured
+  if (genAI && env.LLM_API_KEY && env.LLM_API_KEY.startsWith('AIzaSy')) {
+    const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-pro'];
+    for (const modelName of modelNames) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+        const result = await model.generateContent(promptText);
+        const responseText = result.response.text();
+        const parsed = JSON.parse(responseText);
+        if (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
+          return parsed.ingredients;
+        }
+      } catch (err) {
+        console.warn(`Gemini fetch ingredients with model '${modelName}' failed:`, err.message);
+      }
+    }
+  }
+
+  // 3. Try Free Open AI Engine
   try {
     const response = await fetch('https://text.pollinations.ai/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: 'You are an executive chef. Output ONLY valid JSON object with key "ingredients".' },
+          { role: 'system', content: 'You are an executive chef. Output ONLY valid JSON object with key "ingredients" containing an array of ingredient names.' },
           { role: 'user', content: promptText }
         ],
         jsonMode: true
@@ -215,7 +236,7 @@ CRITICAL RULES:
       const rawText = await response.text();
       const cleaned = rawText.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
-      if (parsed && Array.isArray(parsed.ingredients)) {
+      if (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
         return parsed.ingredients;
       }
     }
@@ -223,7 +244,18 @@ CRITICAL RULES:
     console.warn('Free Open AI fetch ingredients failed:', e.message);
   }
 
-  return [];
+  // Smart Fallback Ingredients based on dish name keywords
+  const cleanName = dishName.trim().toLowerCase();
+  const fallbackList = [];
+  if (cleanName.includes('chicken')) fallbackList.push('Chicken (500g)', 'Onions', 'Tomatoes', 'Ginger Garlic Paste', 'Cooking Oil', 'Garam Masala', 'Salt & Spices');
+  else if (cleanName.includes('paneer') || cleanName.includes('cottage cheese')) fallbackList.push('Paneer (250g)', 'Butter', 'Cream', 'Tomatoes', 'Garam Masala', 'Kasoori Methi', 'Salt');
+  else if (cleanName.includes('rice') || cleanName.includes('biryani') || cleanName.includes('pulao')) fallbackList.push('Basmati Rice (2 cups)', 'Ghee', 'Whole Spices', 'Onions', 'Mint & Coriander', 'Salt');
+  else if (cleanName.includes('naan') || cleanName.includes('roti') || cleanName.includes('paratha') || cleanName.includes('bread')) fallbackList.push('Wheat Flour / Maida', 'Yogurt', 'Butter / Ghee', 'Baking Powder', 'Salt', 'Water');
+  else if (cleanName.includes('dal') || cleanName.includes('curry') || cleanName.includes('sambar')) fallbackList.push('Lentils / Pulses (1 cup)', 'Onions', 'Tomatoes', 'Mustard Seeds', 'Curry Leaves', 'Turmeric & Salt');
+  else if (cleanName.includes('pasta') || cleanName.includes('noodle')) fallbackList.push('Pasta / Noodles', 'Olive Oil', 'Garlic', 'Herbs', 'Cheese / Sauce', 'Salt & Pepper');
+  else fallbackList.push(`${dishName} Main Ingredient`, 'Onions', 'Tomatoes', 'Garlic & Ginger', 'Cooking Oil / Ghee', 'Salt & Pepper', 'Mixed Spices');
+
+  return fallbackList;
 };
 
 /**
