@@ -99,8 +99,13 @@ const recipeSchema = new mongoose.Schema(
       default: () => ({}),
     },
     cooking_tips: [{ type: String }],
+    is_public: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
+
 
 export default mongoose.model('Recipe', recipeSchema);

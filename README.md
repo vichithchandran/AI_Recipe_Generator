@@ -4,7 +4,7 @@
 
 ![AI Recipe Generator Banner](https://img.shields.io/badge/AI%20Recipe%20Generator-Full%20Stack-10b981?style=for-the-badge&logo=react&logoColor=white)
 
-A **full-stack intelligent recipe management platform** powered by **Groq (Llama 3.3 70B)**, **Google Gemini AI** & free open AI engines. Generate personalized recipes by typing any dish craving or using your pantry ingredients, add custom recipes with AI nutrition calculation, manage inventory in bulk, plan weekly meals, and build smart shopping lists — all in one premium dark-themed workspace.
+A **full-stack intelligent recipe management platform & public community hub** powered by **Groq (Llama 3.3 70B)**, **Google Gemini AI** & free open AI engines. Discover public community recipes, generate personalized dishes by typing cravings or pantry ingredients, toggle public recipe sharing, plan weekly meals, and build smart shopping lists — all in one premium dark-themed workspace.
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
@@ -18,7 +18,18 @@ A **full-stack intelligent recipe management platform** powered by **Groq (Llama
 
 ---
 
-## ✨ Features
+## ✨ Key Features
+
+### 🌐 Modern Public Landing Page & Open Access
+- **Public Home Page (`/`)**: Engaging landing page featuring platform capabilities, a 3-step how-it-works overview, platform stats, and a **Live Public Community Recipe Showcase**.
+- **Public Community Showcase (`/community`)**: Open showcase displaying public recipes shared by community members worldwide.
+- **Search & Filters**: Search community recipes by dish name or ingredient, and filter by cuisine type or difficulty.
+- **1-Click Recipe Cloning**: Unauthenticated or authenticated visitors can clone any public recipe into their own personal collection with 1 click.
+- **Shareable Public Links**: Generate and copy direct share URLs (`/recipes/:id`) with instant clipboard toast notifications.
+
+### 🔒 Public / Private Recipe Controls & Automatic Deduplication
+- **Toggle Visibility**: Toggle any recipe between **Public 🌐** and **Private 🔒** directly from recipe cards or detail views.
+- **Automatic Database Deduplication**: Intelligent query optimization automatically merges duplicate recipe records in MongoDB, keeping and prioritizing entries with cover photos while purging duplicate test records.
 
 ### 🤖 AI-Powered Recipe Generation (Multi-Engine Waterfall)
 - Generate custom recipes using **Groq (Llama 3.3 70B)** → **Google Gemini AI** → **Free Open AI Engine** (automatic waterfall fallback)
@@ -27,57 +38,30 @@ A **full-stack intelligent recipe management platform** powered by **Groq (Llama
 - Customize cuisine type, dietary restrictions, servings & cooking time
 - AI strictly avoids recommending expired or spoiled ingredients
 - Generates gourmet **HD food photography images** for every recipe automatically via Pollinations AI
-- Auto-resets form inputs upon successful recipe generation for a clean repeat flow
 
-### 📝 Custom Recipe Creation & Combo Meals (Updated!)
+### 🖨️ Recipe Print Optimization (`@media print`)
+- Clean physical printing formatted for white paper.
+- Universal color override fixes (`*, *::before, *::after { color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; }`) eliminating invisible white text on printouts.
+- Unconstrained viewport heights (`min-height: 0 !important; overflow: visible !important;`) preventing multi-page blank page stretching artifacts.
+- Print-only header with branding, print date, servings count, and prep/cook time.
+
+### 📝 Custom Recipe Creation & Combo Meals
 - **Add Single Dish or Combo Meals**: Choose between a **Single Dish Recipe** or a **Combo Meal (Multi-Item)** (e.g., Thalis, Burger & Fries combos, Breakfast sets)
-- **Multi-Item Combo Management**: Create and manage individual dish items (*Item 1: Butter Chicken*, *Item 2: Garlic Naan*, *Item 3: Jeera Rice*) with per-item dish names, ingredients, and step-by-step instructions
-- **✨ AI Auto-Fetch Item Ingredients**: One-click AI ingredient auto-fetch per individual dish item or single dish recipe name
-- **🍽️ Itemized Combo Recipe Detail Page**: Interactive dish tabs allowing users to view ingredients and cooking steps per dish item or view all combined
-- **Ingredients Used**: Add custom ingredients with specific quantities and units (`g`, `kg`, `ml`, `l`, `pcs`, `cups`, `tbsp`, `tsp`)
-- **Dish Photography**: Upload/paste dish image URL or click **`✨ AI Generate Image`** to automatically create gourmet food photos
-- **Step-by-Step Instructions**: Add numbered cooking instructions with vertical drag-resizing textareas
-- **Video References**: Attach YouTube cooking tutorial URLs with video badges & reference player card on detail pages
-- **⚡ AI Nutrition per Serving Calculator**: One-click AI calculation of Calories, Protein, Carbs, Fats, and Fiber across single or combo meal ingredients
-- **Dietary Categories**: Tag recipes with Non-Vegetarian 🔴, Vegetarian 🟢, Vegan, Gluten-Free, Dairy-Free, Keto, Paleo with FSSAI indicator symbols
-- **🎨 Flawless UI Focus & Draggable Textareas**: Smooth unclipped emerald focus rings on all inputs, select boxes, and textareas with vertical height drag adjustment
+- **Multi-Item Combo Management**: Create and manage individual dish items (*Item 1: Butter Chicken*, *Item 2: Garlic Naan*, *Item 3: Jeera Rice*)
+- **AI Auto-Fetch Item Ingredients**: One-click AI ingredient auto-fetch per individual dish item or single dish recipe name
+- **Itemized Combo Recipe Detail Page**: Interactive dish tabs allowing users to view ingredients and cooking steps per dish item or view all combined
+- **AI Nutrition per Serving Calculator**: One-click AI calculation of Calories, Protein, Carbs, Fats, and Fiber across single or combo meal ingredients
 
 ### 🇮🇳 All Indian State & Regional Cuisines
 - Comprehensive support for all **28+ Indian States & Regional Cuisines**:
   - *Kerala, South Indian, Tamil Nadu, Karnataka, Andhra Pradesh, Telangana, North Indian, Punjabi, Bengali (West Bengal), Maharashtrian, Gujarati, Rajasthani, Goan, Kashmiri, Odia (Odisha), Assamese, Bihari, Hyderabadi, Chettinad, Awadhi / Mughlai, Himachali, Uttarakhand / Kumaoni, Naga, Manipuri, Meghalayan, Sikkimese, Indo-Chinese*
   - International cuisines: *Italian, Mexican, Chinese, Japanese, Thai, French, Mediterranean, American, Other*
 
-### 🧺 Bulk Pantry Inventory Entry (New!)
+### 🧺 Bulk Pantry Inventory Entry & Smart Shopping List
 - Add individual items or add **multiple pantry items in one go** (`AddItemModal`)
 - **Quick Text Paste & Smart Parser**: Paste text lists like `Tomatoes, 2kg Rice, Garlic, Milk, 500g Sugar` — parses into structured item rows
-- **Dynamic Multi-Row Editor**: Edit name, quantity, unit, and category for multiple items before bulk saving (`insertMany`)
-- Color-coded status borders:
-  - 🔴 **Red** — Expired items
-  - 🟡 **Amber** — Expiring within 7 days
-  - 🟠 **Orange** — Running low on stock
-  - 🟢 **Emerald** — Fresh & in stock
-
-### 🛒 Smart Shopping List & Pre-Transfer Editing (New!)
-- **Unified Action Bar**: High-contrast styled buttons (`Add Item`, `Transfer to Pantry (X)`, `Clear Checked Items (X)`)
-- **Pre-Transfer Quantity Modifier**: Quick `+` / `-` buttons and full edit modal on shopping list items to adjust quantities (e.g. 1kg → 2kg) before transferring to pantry
-- **Category Synchronization**: Standardized categories (`Vegetables`, `Fruits`, `Dairy`, `Meat`, `Grains`, `Spices`, `Beverages`, `Other`) matching Pantry
-- **Low-Stock Warning Auto-Clear**: Transferring items to pantry automatically resets `is_running_low: false`, immediately clearing low-stock warning banners
-
-### 🍽️ Specific Dish Craving
-- Type any specific dish in the **"Specific Dish Craving"** textarea (e.g. *Kerala Karimeen Pollichathu*, *Palak Paneer*)
-- Click **"Auto-Fetch Ingredients"** — AI automatically fetches authentic required ingredients, respecting active **Cuisine Style** and **Dietary Restrictions**
-- **Egg is strictly classified as Non-Vegetarian** (FSSAI standard — 🔴 Red symbol)
-
-### 📅 Weekly Meal Planner
-- Visual 7-day calendar grid (Breakfast, Lunch, Dinner, Snack)
-- Clean, modern layout without emojis
-- Schedule saved recipes to any day/meal slot
-- Navigate between weeks with instant DB sync
-
-### 📋 Redesigned Recipe Detail Layout
-- **Balanced 2-column grid**: Ingredient checklist (left) + Instructions / Video Reference / Chef Pro Tips / Nutrition (right)
-- **Servings Adjuster Banner** — ingredient quantities automatically scale
-- **Print Recipe** button
+- **Pre-Transfer Quantity Modifier**: Adjust quantities on shopping list items before transferring to pantry
+- **Low-Stock Warning Auto-Clear**: Transferring items to pantry automatically resets low-stock warnings
 
 ---
 
@@ -89,13 +73,12 @@ A **full-stack intelligent recipe management platform** powered by **Groq (Llama
 | **UI Components** | Lucide Icons, React Hot Toast |
 | **Backend** | Node.js, Express.js (ESM) |
 | **Database** | MongoDB Atlas (Mongoose ODM) |
-| **AI Engine (Primary)** | Groq Cloud — `llama-3.3-70b-versatile` (free tier, sub-second) |
-| **AI Engine (Fallback 1)** | Google Gemini API (`gemini-2.0-flash` with model cascade) |
+| **AI Engine (Primary)** | Groq Cloud — `llama-3.3-70b-versatile` |
+| **AI Engine (Fallback 1)** | Google Gemini API (`gemini-2.0-flash`) |
 | **AI Engine (Fallback 2)** | Free Open AI Engine (`text.pollinations.ai`) |
 | **Image Generation** | Pollinations AI (`image.pollinations.ai`) |
 | **Authentication** | JWT (256-bit secret), bcryptjs |
 | **Routing** | React Router DOM v7 |
-| **Date Handling** | date-fns |
 
 ---
 
@@ -110,44 +93,35 @@ AI_Recipe_Generator/
 │   │   └── env.js              # Environment config
 │   ├── controllers/            # Route handlers
 │   │   ├── authController.js
-│   │   ├── recipeController.js # generateRecipe, createRecipe, calculateNutrition
-│   │   ├── pantryController.js # getPantryItems, addPantryItem (single + bulk)
+│   │   ├── recipeController.js # getPublicRecipes, cloneRecipe, deduplicateRecipes
+│   │   ├── pantryController.js
 │   │   ├── mealPlanController.js
-│   │   └── shoppingListController.js # transferToPantry, updateShoppingItem
-│   ├── middleware/             # Auth & error middleware
+│   │   └── shoppingListController.js
+│   ├── middleware/             # Auth & optionalAuth middleware
 │   ├── models/                 # Mongoose schemas
-│   │   ├── User.js
-│   │   ├── PantryItem.js
-│   │   ├── Recipe.js           # video_url, nutrition, ingredients, instructions
-│   │   ├── MealPlan.js
-│   │   └── ShoppingListItem.js
 │   ├── routes/
-│   │   └── recipeRoutes.js     # /generate, /fetch-ingredients, /calculate-nutrition
+│   │   └── recipeRoutes.js     # /public, /:id/clone, /:id/toggle-public
 │   ├── services/
-│   │   └── aiService.js        # Multi-engine AI waterfall & calculateNutritionFromAI
+│   │   └── aiService.js        # Multi-engine AI waterfall
 │   └── server.js               # Entry point
 │
 └── frontend/ai-recipe-generator/
     ├── src/
     │   ├── components/
-    │   │   ├── Navbar.jsx
-    │   │   ├── ConfirmModal.jsx
+    │   │   ├── Navbar.jsx      # Responsive nav with public/private states
     │   │   └── DietSymbol.jsx  # Indian FSSAI Veg/Non-Veg symbols
     │   ├── pages/
-    │   │   ├── Login.jsx
-    │   │   ├── SignUp.jsx
-    │   │   ├── ResetPassword.jsx
+    │   │   ├── LandingPage.jsx    # Public home page & live community showcase
+    │   │   ├── PublicRecipes.jsx  # Community public recipe exploration & cloning
+    │   │   ├── Login.jsx          # 100vh viewport height optimized
+    │   │   ├── SignUp.jsx         # 100vh viewport height optimized
     │   │   ├── Dashboard.jsx
-    │   │   ├── Pantry.jsx         # Single & Bulk Add Multi-Item Modal
-    │   │   ├── RecipeGenerator.jsx# 3-in-1 input + Dish Craving + Image Fallback
-    │   │   ├── MyRecipes.jsx      # Add Custom Recipe + AI Nutrition + Video URL
-    │   │   ├── RecipeDetail.jsx   # Video Reference player card + 2-column grid
+    │   │   ├── Pantry.jsx
+    │   │   ├── RecipeGenerator.jsx# AI recipe generator with save state
+    │   │   ├── MyRecipes.jsx      # Public toggle & share link copy
+    │   │   ├── RecipeDetail.jsx   # Public share & @media print support
     │   │   ├── MealPlanner.jsx
-    │   │   └── ShoppingList.jsx   # Pre-transfer quantity edit + Category sync
-    │   ├── services/
-    │   │   ├── recipeService.js   # calculateNutrition, createRecipe
-    │   │   ├── pantryService.js
-    │   │   └── shoppingListService.js
+    │   │   └── ShoppingList.jsx
     │   └── App.jsx
     └── index.html
 ```
@@ -159,15 +133,15 @@ AI_Recipe_Generator/
 ### Prerequisites
 - **Node.js** v18+
 - **npm** v9+
-- A **MongoDB Atlas** account
-- A **Groq API key** — free at [console.groq.com](https://console.groq.com/) *(recommended — fastest, free)*
+- A **MongoDB Atlas** database
+- A **Groq API key** — free at [console.groq.com](https://console.groq.com/)
 - *(Optional)* A **Google Gemini API key** — free at [ai.google.dev](https://ai.google.dev/)
 
-### 1. Clone the Repository
+### 1. Clone & Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-recipe-generator.git
-cd ai-recipe-generator
+git clone https://github.com/vichithchandran/AI_Recipe_Generator.git
+cd AI_Recipe_Generator
 ```
 
 ### 2. Backend Setup
@@ -177,7 +151,7 @@ cd backend
 npm install
 ```
 
-Create `.env` file:
+Create `.env` file in `/backend`:
 
 ```env
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
@@ -187,13 +161,11 @@ PORT=8000
 NODE_ENV=development
 ```
 
-Start backend:
+Run backend:
 
 ```bash
 npm start
 ```
-
-The API will run at `http://localhost:8000`
 
 ### 3. Frontend Setup
 
@@ -203,38 +175,7 @@ npm install
 npm run dev
 ```
 
-App runs at `http://localhost:5173`
-
----
-
-## 🥚 Dietary Classification Rules
-
-| Tag | Rule |
-|---|---|
-| **Non-Vegetarian** 🔴 | Meat, Poultry, Fish, Seafood, **Egg** (FSSAI standard) |
-| **Vegetarian** 🟢 | No meat, poultry, fish, seafood, or egg |
-| **Vegan** 🌿 | No animal products incl. dairy, egg, honey |
-| **Gluten-Free** | No wheat, flour, maida, barley, rye, bread, pasta, soy sauce |
-| **Dairy-Free** | No milk, cheese, cream, butter, yogurt, ghee, paneer |
-| **Keto** | <10g carbs/serving; no sugar, rice, potato, bread, corn |
-| **Paleo** | Whole foods only; no grains, legumes, dairy, refined sugar |
-
-> 🔴 **Important:** Egg is classified as **Non-Vegetarian** by FSSAI standards.
-
----
-
-## 📸 Application Screens
-
-| Screen | Description |
-|---|---|
-| **Dashboard** | Stats overview, recent recipes, upcoming meals |
-| **Pantry** | Single & Bulk multi-item addition, FSSAI Veg/Non-Veg status cards |
-| **AI Generator** | 3-in-1 ingredient input, Specific Dish Craving, auto-fetch, image loading fallback |
-| **My Recipes** | Custom recipe creator, AI nutrition calculator, video URLs, All Indian state cuisines filter |
-| **Recipe Detail** | 2-column balanced grid, video reference card, serving scaler, print |
-| **Meal Planner** | 7-day weekly calendar grid without emojis |
-| **Shopping List** | Smart grouped list with pre-transfer quantity editing (+/-) & pantry transfer |
-| **Settings** | Profile, password, dietary preferences, cuisine selection |
+Visit `http://localhost:5173`
 
 ---
 

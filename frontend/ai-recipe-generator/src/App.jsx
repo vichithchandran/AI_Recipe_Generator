@@ -12,11 +12,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
+import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Pantry from "./pages/Pantry";
 import RecipeGenerator from "./pages/RecipeGenerator";
 import MyRecipes from "./pages/MyRecipes";
+import PublicRecipes from "./pages/PublicRecipes";
 import RecipeDetail from "./pages/RecipeDetail";
+
 import ShoppingList from "./pages/ShoppingList";
 import Settings from "./pages/Settings";
 import MealPlanner from "./pages/MealPlanner";
@@ -26,15 +29,14 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Default Route */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
           {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/community" element={<PublicRecipes />} />
+          <Route path="/recipes/:id" element={<RecipeDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-
 
           {/* Protected Routes */}
           <Route
@@ -69,16 +71,11 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/recipes/:id"
-            element={
-              <ProtectedRoute>
-                <RecipeDetail />
-              </ProtectedRoute>
-            }
-          />
+
+
           <Route
             path="/meal-plan"
+
             element={
               <ProtectedRoute>
                 <MealPlanner />

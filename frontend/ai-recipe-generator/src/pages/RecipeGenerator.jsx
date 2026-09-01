@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2, Coffee, UtensilsCrossed, Apple, Moon, ShoppingBag } from "lucide-react";
+import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2, Coffee, UtensilsCrossed, Apple, Moon, ShoppingBag, Printer } from "lucide-react";
 import Navbar from "../components/Navbar";
+
 import toast from "react-hot-toast";
 import { recipeService } from "../services/recipeService";
 import { userService } from "../services/userService";
@@ -92,6 +93,7 @@ const RecipeGenerator = () => {
   const [generating, setGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -222,6 +224,7 @@ const RecipeGenerator = () => {
 
     setGenerating(true);
     setGeneratedRecipe(null);
+    setIsSaved(false);
     setImageLoaded(false);
     setImageError(false);
 
@@ -260,7 +263,7 @@ const RecipeGenerator = () => {
   };
 
   const handleSaveRecipe = async () => {
-    if (!generatedRecipe) return;
+    if (!generatedRecipe || isSaved) return;
 
     setSaving(true);
     try {
@@ -282,6 +285,7 @@ const RecipeGenerator = () => {
 
       const res = await recipeService.createRecipe(recipePayload);
       if (res.success) {
+        setIsSaved(true);
         toast.success("Recipe saved to your collection!");
       }
     } catch (error) {
@@ -291,27 +295,34 @@ const RecipeGenerator = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-12">
-      <Navbar />
+      <div className="no-print">
+        <Navbar />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-emerald-400 via-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-xl shadow-emerald-500/20">
-            <Wand2 className="w-8 h-8 text-slate-950" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 no-print">
+          <div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight font-heading">
+              AI Recipe <span className="text-gradient">Generator</span>
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Mention a specific dish craving or input ingredients — our AI will automatically fetch ingredients and create a custom recipe.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-heading">
-            AI Recipe <span className="text-gradient">Generator</span>
-          </h1>
-          <p className="text-slate-400 text-sm mt-2">
-            Mention a specific dish craving or input ingredients — our AI will automatically fetch ingredients and create a custom recipe.
-          </p>
         </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Input & Parameters Column */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6 no-print">
+
             {/* Ingredient Builder Card */}
             <div className="glass-panel rounded-3xl p-6 border border-slate-800/80">
               <div className="flex items-center justify-between mb-4">
@@ -637,7 +648,26 @@ const RecipeGenerator = () => {
           <div className="lg:col-span-7">
             {generatedRecipe ? (
               <div className="glass-panel rounded-3xl p-8 border border-slate-800/80 shadow-2xl space-y-6 animate-fade-in">
+                {/* Print-Only Branding Header */}
+                <div className="print-only mb-6 pb-4 border-b border-slate-300">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <div className="text-xl font-bold text-slate-900 flex items-center gap-2 font-heading">
+                        <ChefHat className="w-5 h-5 text-emerald-700" />
+                        AI Recipe Generator
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Printed on {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs font-semibold text-slate-700">
+                      <div>Servings: <span className="font-bold text-slate-900">{generatedRecipe.servings}</span></div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Generated Recipe Image */}
+
                 {(generatedRecipe.imageUrl || generatedRecipe.image_url) && (
                   <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-slate-800 shadow-md bg-slate-900">
                     {/* Skeleton loader shown while image is loading */}
@@ -742,23 +772,48 @@ const RecipeGenerator = () => {
                   </ol>
                 </div>
 
-                {/* Save & Reset Actions */}
-                <div className="flex gap-3 pt-4 border-t border-slate-800/80">
+                {/* Save, Print & Reset Actions */}
+                <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-4 border-t border-slate-800/80 no-print">
                   <button
                     onClick={handleSaveRecipe}
-                    disabled={saving}
-                    className="flex-1 bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-extrabold py-3 rounded-xl transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 cursor-pointer"
+                    disabled={saving || isSaved}
+                    className={`flex-1 font-extrabold py-3 rounded-xl transition-all text-xs flex items-center justify-center gap-2 ${
+                      isSaved
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default"
+                        : "bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 cursor-pointer disabled:opacity-50"
+                    }`}
                   >
-                    <Bookmark className="w-4 h-4" />
-                    {saving ? "Saving Recipe..." : "Save Recipe to Collection"}
+                    {saving ? (
+                      "Saving Recipe..."
+                    ) : isSaved ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Saved to Collection ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-4 h-4" />
+                        <span>Save Recipe to Collection</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handlePrint}
+                    className="px-4 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                    title="Print Recipe"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print</span>
                   </button>
                   <button
                     onClick={() => setGeneratedRecipe(null)}
-                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                    className="px-4 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
                   >
                     New Generation
                   </button>
                 </div>
+
               </div>
             ) : (
               <div className="glass-panel rounded-3xl p-16 text-center border border-slate-800/80 h-full flex flex-col items-center justify-center min-h-112.5">

@@ -3,6 +3,68 @@ import PantryItem from '../models/PantryItem.js';
 import ApiError from '../utils/apiError.js';
 import { generateRecipeFromAI, fetchIngredientsFromAI, calculateNutritionFromAI } from '../services/aiService.js';
 
+// Helper to deduplicate recipes in MongoDB and purge test recipes
+const deduplicateRecipes = async (recipeList) => {
+  try {
+    // 1. Purge any test/sample/demo recipes directly from MongoDB
+    await Recipe.deleteMany({
+      name: { $regex: /test|sample|demo/i },
+    });
+  } catch (e) {
+    console.error('Test recipe cleanup error:', e);
+  }
+
+  if (!Array.isArray(recipeList) || recipeList.length === 0) return [];
+
+  // Filter out any deleted test recipes from memory
+  const cleanList = recipeList.filter((recipe) => {
+    const nameStr = String(recipe.name || '').toLowerCase();
+    return (
+      !nameStr.includes('test') &&
+      !nameStr.includes('sample') &&
+      !nameStr.includes('demo')
+    );
+  });
+
+  if (cleanList.length <= 1) return cleanList;
+
+  // 2. Deduplicate remaining recipes (keeps the one with image_url and deletes duplicates)
+  const grouped = new Map();
+  const idsToDelete = [];
+
+  for (const recipe of cleanList) {
+    const key = String(recipe.name || '').toLowerCase().trim();
+    if (!key) continue;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, recipe);
+    } else {
+      const existing = grouped.get(key);
+      const incomingHasImage = !!(recipe.image_url || recipe.imageUrl);
+      const existingHasImage = !!(existing.image_url || existing.imageUrl);
+
+      if (incomingHasImage && !existingHasImage) {
+        idsToDelete.push(existing._id);
+        grouped.set(key, recipe);
+      } else {
+        idsToDelete.push(recipe._id);
+      }
+    }
+  }
+
+  if (idsToDelete.length > 0) {
+    try {
+      await Recipe.deleteMany({ _id: { $in: idsToDelete } });
+    } catch (e) {
+      console.error('Deduplication cleanup error:', e);
+    }
+  }
+
+  return Array.from(grouped.values());
+};
+
+
+
 // @desc    Get all user saved recipes
 // @route   GET /api/recipes
 // @access  Private
@@ -33,7 +95,8 @@ export const getRecipes = async (req, res, next) => {
       recipeQuery = recipeQuery.limit(Number(limit));
     }
 
-    const recipes = await recipeQuery;
+    const rawRecipes = await recipeQuery;
+    const recipes = await deduplicateRecipes(rawRecipes);
 
     res.status(200).json({
       success: true,
@@ -47,13 +110,17 @@ export const getRecipes = async (req, res, next) => {
 
 // @desc    Get single recipe details
 // @route   GET /api/recipes/:id
-// @access  Private
+// @access  Public / Private
 export const getRecipeById = async (req, res, next) => {
   try {
-    const recipe = await Recipe.findOne({ _id: req.params.id, user: req.user._id });
+    const query = req.user
+      ? { _id: req.params.id, $or: [{ user: req.user._id }, { is_public: { $ne: false } }] }
+      : { _id: req.params.id, is_public: { $ne: false } };
+
+    const recipe = await Recipe.findOne(query);
 
     if (!recipe) {
-      return next(new ApiError('Recipe not found', 404));
+      return next(new ApiError('Recipe not found or is private', 404));
     }
 
     res.status(200).json({
@@ -73,6 +140,34 @@ export const createRecipe = async (req, res, next) => {
     const { is_combo, items } = req.body;
     let ingredients = req.body.ingredients || [];
     let instructions = req.body.instructions || [];
+    const name = (req.body.name || '').trim();
+    const imageUrl = req.body.image_url || req.body.imageUrl || null;
+
+    // Check if recipe with same name already exists for this user to prevent duplicates
+    if (name) {
+      const existing = await Recipe.findOne({
+        user: req.user._id,
+        name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+      });
+
+      if (existing) {
+        if (imageUrl && !existing.image_url) {
+          existing.image_url = imageUrl;
+        }
+        if (ingredients.length > 0) existing.ingredients = ingredients;
+        if (instructions.length > 0) existing.instructions = instructions;
+        if (req.body.nutrition) existing.nutrition = req.body.nutrition;
+        if (req.body.is_public !== undefined) existing.is_public = req.body.is_public;
+
+        await existing.save();
+
+        return res.status(200).json({
+          success: true,
+          data: existing,
+          message: 'Recipe updated in your collection',
+        });
+      }
+    }
 
     if (is_combo && Array.isArray(items) && items.length > 0) {
       if (ingredients.length === 0) {
@@ -113,6 +208,7 @@ export const createRecipe = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // @desc    Auto-fetch ingredients for a target dish name
 // @route   POST /api/recipes/fetch-ingredients
@@ -227,3 +323,107 @@ export const deleteRecipe = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Toggle recipe public / private status
+// @route   PATCH /api/recipes/:id/toggle-public
+// @access  Private
+export const togglePublicStatus = async (req, res, next) => {
+  try {
+    const recipe = await Recipe.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!recipe) {
+      return next(new ApiError('Recipe not found', 404));
+    }
+
+    recipe.is_public = recipe.is_public === false ? true : false;
+    await recipe.save();
+
+    res.status(200).json({
+      success: true,
+      data: recipe,
+      message: recipe.is_public ? 'Recipe is now public' : 'Recipe is now private',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all public recipes shared by community users
+// @route   GET /api/recipes/public
+// @access  Private / Public
+export const getPublicRecipes = async (req, res, next) => {
+  try {
+    const { search, cuisine, difficulty, limit } = req.query;
+
+    const query = { is_public: { $ne: false } };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (cuisine && cuisine !== 'all' && cuisine !== 'All') {
+      query.cuisine_type = cuisine;
+    }
+
+    if (difficulty && difficulty !== 'all' && difficulty !== 'All') {
+      query.difficulty = difficulty;
+    }
+
+    let recipeQuery = Recipe.find(query).populate('user', 'name email').sort({ createdAt: -1 });
+
+    if (limit) {
+      recipeQuery = recipeQuery.limit(Number(limit));
+    }
+
+    const rawRecipes = await recipeQuery;
+    const recipes = await deduplicateRecipes(rawRecipes);
+
+    res.status(200).json({
+
+      success: true,
+      count: recipes.length,
+      data: recipes,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Clone a public recipe into current user's collection
+// @route   POST /api/recipes/:id/clone
+// @access  Private
+export const cloneRecipe = async (req, res, next) => {
+  try {
+    const originalRecipe = await Recipe.findOne({ _id: req.params.id, is_public: { $ne: false } });
+
+
+    if (!originalRecipe) {
+      return next(new ApiError('Public recipe not found', 404));
+    }
+
+    const clonedData = originalRecipe.toObject();
+    delete clonedData._id;
+    delete clonedData.createdAt;
+    delete clonedData.updatedAt;
+    delete clonedData.__v;
+
+    clonedData.user = req.user._id;
+    clonedData.name = `${clonedData.name} (Saved Copy)`;
+    clonedData.is_public = false; // default cloned copy to private
+
+    const clonedRecipe = await Recipe.create(clonedData);
+
+    res.status(201).json({
+      success: true,
+      data: clonedRecipe,
+      message: 'Recipe saved to your collection!',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+

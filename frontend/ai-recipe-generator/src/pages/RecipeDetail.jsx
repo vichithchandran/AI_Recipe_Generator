@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer, Video, ExternalLink, Layers, Utensils } from "lucide-react";
+import { Clock, Users, ArrowLeft, Trash2, ChefHat, CheckCircle2, Flame, Sparkles, Printer, Video, ExternalLink, Layers, Utensils, Share2, Globe, Lock, Check } from "lucide-react";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
@@ -16,6 +16,8 @@ const RecipeDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeComboTab, setActiveComboTab] = useState("all");
+  const [isPublic, setIsPublic] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const loadRecipe = async () => {
@@ -25,6 +27,7 @@ const RecipeDetail = () => {
         if (res.success && res.data) {
           setRecipe(res.data);
           setServings(res.data.servings || 4);
+          setIsPublic(res.data.is_public !== false);
         }
       } catch (error) {
         toast.error(error.response?.data?.message || "Recipe not found");
@@ -36,6 +39,28 @@ const RecipeDetail = () => {
 
     loadRecipe();
   }, [id, navigate]);
+
+  const handleTogglePublic = async () => {
+    try {
+      const res = await recipeService.togglePublicStatus(id);
+      if (res.success) {
+        const updated = res.data?.is_public !== false;
+        setIsPublic(updated);
+        toast.success(updated ? "Recipe is now Public 🌐" : "Recipe is now Private 🔒");
+      }
+    } catch (error) {
+      toast.error("Failed to update public status");
+    }
+  };
+
+  const handleShareLink = () => {
+    const shareUrl = `${window.location.origin}/recipes/${id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    toast.success("Public share link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
 
   const confirmDelete = async () => {
     try {
@@ -99,11 +124,32 @@ const RecipeDetail = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-radial-ambient pb-16">
-      <Navbar />
+      <div className="no-print">
+        <Navbar />
+      </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Dedicated Print-Only Branding Header */}
+        <div className="print-only mb-6 pb-4 border-b border-slate-300">
+          <div className="flex justify-between items-end">
+            <div>
+              <div className="text-xl font-bold text-slate-900 flex items-center gap-2 font-heading">
+                <ChefHat className="w-5 h-5 text-emerald-700" />
+                AI Recipe Generator
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Printed on {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+            <div className="text-right text-xs font-semibold text-slate-700">
+              <div>Servings: <span className="font-bold text-slate-900">{servings}</span></div>
+              <div>Total Prep/Cook Time: <span className="font-bold text-slate-900">{totalTime} mins</span></div>
+            </div>
+          </div>
+        </div>
+
         {/* Navigation & Actions Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 no-print">
           <Link
             to="/recipes"
             className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
@@ -113,6 +159,32 @@ const RecipeDetail = () => {
           </Link>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleShareLink}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                copied
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                  : "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300"
+              }`}
+              title="Copy Public Share Link"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span>{copied ? "Link Copied!" : "Share Recipe"}</span>
+            </button>
+
+            <button
+              onClick={handleTogglePublic}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                isPublic
+                  ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/80"
+                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+              }`}
+              title={isPublic ? "Public Recipe (Click to make Private)" : "Private Recipe (Click to make Public)"}
+            >
+              {isPublic ? <Globe className="w-3.5 h-3.5 text-emerald-400" /> : <Lock className="w-3.5 h-3.5 text-slate-400" />}
+              <span>{isPublic ? "Public" : "Private"}</span>
+            </button>
+
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-medium transition-colors cursor-pointer"
@@ -130,7 +202,9 @@ const RecipeDetail = () => {
               <span>Delete</span>
             </button>
           </div>
+
         </div>
+
 
         {/* Recipe Hero Card */}
         <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800/80 mb-8 shadow-2xl overflow-hidden">
@@ -231,7 +305,7 @@ const RecipeDetail = () => {
         </div>
 
         {/* Servings Controller Banner */}
-        <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
               <Users className="w-5 h-5" />
@@ -263,7 +337,7 @@ const RecipeDetail = () => {
 
         {/* Combo Meal Items Navigation Bar */}
         {isComboMeal && recipe.items && recipe.items.length > 0 && (
-          <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8">
+          <div className="glass-panel rounded-2xl p-4 border border-slate-800/80 mb-8 no-print">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-emerald-400" />
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
@@ -388,7 +462,7 @@ const RecipeDetail = () => {
 
             {/* Video Reference */}
             {(recipe.video_url || recipe.videoUrl) && (
-              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-slate-900/60">
+              <div className="glass-panel rounded-3xl p-6 border border-slate-800/80 bg-slate-900/60 no-print">
                 <div className="flex items-center gap-2 mb-3">
                   <Video className="w-5 h-5 text-red-400" />
                   <h3 className="text-sm font-bold text-white font-heading">Video Reference</h3>
@@ -442,18 +516,21 @@ const RecipeDetail = () => {
       </div>
 
       {/* Confirm Delete Modal */}
-      <ConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDelete}
-        title="Delete Saved Recipe"
-        message="Are you sure you want to delete this recipe from your collection?"
-        confirmText="Delete Recipe"
-        variant="danger"
-      />
+      <div className="no-print">
+        <ConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDelete}
+          title="Delete Saved Recipe"
+          message="Are you sure you want to delete this recipe from your collection?"
+          confirmText="Delete Recipe"
+          variant="danger"
+        />
+      </div>
     </div>
   );
 };
+
 
 const NutritionCard = ({ label, value, unit }) => (
   <div className="text-center p-3 bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">

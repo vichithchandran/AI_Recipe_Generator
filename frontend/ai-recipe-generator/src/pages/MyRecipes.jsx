@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Clock, ChefHat, Trash2, Sparkles, ArrowRight, Plus, X, Video, Image, Wand2, Calculator, PlusCircle, Layers, Utensils } from "lucide-react";
+import { Search, Clock, ChefHat, Trash2, Sparkles, ArrowRight, Plus, X, Video, Image, Wand2, Calculator, PlusCircle, Layers, Utensils, Share2, Globe, Lock, Check, Users, Flame } from "lucide-react";
+
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
 import DietSymbol from "../components/DietSymbol";
@@ -114,6 +115,14 @@ const MyRecipes = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/community"
+              className="inline-flex items-center justify-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 font-bold px-5 py-3 rounded-xl transition-all text-xs"
+            >
+              <Globe className="w-4 h-4" />
+              <span>Explore Community Landing Page</span>
+            </Link>
+
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center justify-center gap-2 bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 font-extrabold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs cursor-pointer"
@@ -130,6 +139,7 @@ const MyRecipes = () => {
               <span>AI Recipe Generator</span>
             </Link>
           </div>
+
         </div>
 
         {/* Search & Filters Bar */}
@@ -237,79 +247,165 @@ const MyRecipes = () => {
 };
 
 const RecipeCard = ({ recipe, onDelete }) => {
-  const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+  const [isPublic, setIsPublic] = useState(recipe.is_public !== false);
+  const [copied, setCopied] = useState(false);
+
+  const totalTime = (recipe.prep_time || recipe.prepTime || 0) + (recipe.cook_time || recipe.cookTime || 0);
+  const isCombo = recipe.is_combo || (recipe.items && recipe.items.length > 0);
+  const calories = recipe.nutrition?.calories || recipe.calories || 350;
+  const servings = recipe.servings || 4;
+
+  const handleTogglePublic = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await recipeService.togglePublicStatus(recipe.id || recipe._id);
+      if (res.success) {
+        const updated = res.data?.is_public !== false;
+        setIsPublic(updated);
+        toast.success(updated ? "Recipe is now Public 🌐" : "Recipe is now Private 🔒");
+      }
+    } catch (error) {
+      toast.error("Failed to update public status");
+    }
+  };
+
+  const handleShareLink = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/recipes/${recipe.id || recipe._id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    toast.success("Public share link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const difficultyColors = {
+    easy: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    medium: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    hard: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  };
 
   return (
-    <div className="glass-panel rounded-3xl border border-slate-800/80 overflow-hidden hover:border-emerald-500/30 transition-all glass-panel-hover flex flex-col justify-between group">
+    <div className="glass-panel rounded-3xl border border-slate-800/80 overflow-hidden hover:border-emerald-500/40 transition-all duration-300 glass-panel-hover flex flex-col justify-between group shadow-xl hover:shadow-emerald-500/10">
       <div>
-        {/* Banner Graphic / Image */}
-        <div className="h-44 bg-linear-to-br from-slate-900 via-emerald-950/30 to-slate-950 border-b border-slate-800 flex items-center justify-center relative overflow-hidden">
+        {/* Banner Image Container */}
+        <div className="h-48 bg-linear-to-br from-slate-900 via-slate-950 to-slate-900 border-b border-slate-800/80 flex items-center justify-center relative overflow-hidden">
           {recipe.image_url || recipe.imageUrl ? (
             <img
               src={recipe.image_url || recipe.imageUrl}
               alt={recipe.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               onError={(e) => {
                 e.target.style.display = "none";
               }}
             />
           ) : (
-            <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <ChefHat className="w-10 h-10 text-emerald-400" />
             </div>
           )}
-          {recipe.cuisine_type && (
-            <span className="absolute top-3 right-3 px-2.5 py-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 text-emerald-400 rounded-lg text-[11px] font-bold z-10">
-              {recipe.cuisine_type}
-            </span>
-          )}
-          {(recipe.video_url || recipe.videoUrl) && (
-            <span className="absolute top-3 left-3 px-2 py-1 bg-red-950/80 backdrop-blur-md border border-red-500/30 text-red-300 rounded-lg text-[10px] font-bold z-10 flex items-center gap-1">
-              <Video className="w-3 h-3 text-red-400" />
-              <span>Video</span>
-            </span>
-          )}
+
+          {/* Top Gradient Overlay */}
+          <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-transparent to-slate-950/40 pointer-events-none"></div>
+
+          {/* Top Left Tags */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
+            {isCombo && (
+              <span className="px-2.5 py-1 bg-emerald-950/80 backdrop-blur-md border border-emerald-500/40 text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-md">
+                <Layers className="w-3 h-3 text-emerald-400" />
+                Combo ({recipe.items?.length || 2})
+              </span>
+            )}
+            {(recipe.video_url || recipe.videoUrl) && (
+              <span className="px-2.5 py-1 bg-red-950/80 backdrop-blur-md border border-red-500/40 text-red-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-md">
+                <Video className="w-3 h-3 text-red-400" />
+                Video
+              </span>
+            )}
+          </div>
+
+          {/* Top Right Tags & Public Status */}
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+            {recipe.cuisine_type && (
+              <span className="px-2.5 py-1 bg-slate-950/85 backdrop-blur-md border border-slate-800 text-emerald-400 rounded-lg text-[11px] font-extrabold shadow-md">
+                {recipe.cuisine_type}
+              </span>
+            )}
+            <button
+              onClick={handleTogglePublic}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-md border flex items-center gap-1 transition-all cursor-pointer shadow-md ${
+                isPublic
+                  ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/90"
+                  : "bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800"
+              }`}
+              title={isPublic ? "Public Recipe (Click to make Private)" : "Private Recipe (Click to make Public)"}
+            >
+              {isPublic ? (
+                <>
+                  <Globe className="w-3 h-3 text-emerald-400" />
+                  <span>Public</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3 h-3 text-slate-400" />
+                  <span>Private</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Recipe Info */}
-        <div className="p-6">
-          <Link to={`/recipes/${recipe.id || recipe._id}`} className="block mb-3">
-            <div className="flex items-center gap-2">
+        {/* Card Content Body */}
+        <div className="p-5 sm:p-6 space-y-3">
+          <Link to={`/recipes/${recipe.id || recipe._id}`} className="block group/title">
+            <div className="flex items-start gap-2">
               <DietSymbol
                 name={recipe.name}
                 tags={recipe.dietary_tags || []}
                 ingredients={recipe.ingredients || []}
-                className="w-4 h-4 mt-0.5"
+                className="w-4 h-4 mt-1 shrink-0"
               />
-              <h3 className="font-extrabold text-lg text-white group-hover:text-emerald-400 transition-colors font-heading line-clamp-2">
+              <h3 className="font-extrabold text-base sm:text-lg text-white group-hover/title:text-emerald-400 transition-colors font-heading leading-snug line-clamp-1">
                 {recipe.name}
               </h3>
             </div>
+
             {recipe.description && (
-              <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+              <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed font-normal">
                 {recipe.description}
               </p>
             )}
           </Link>
 
-          {/* Badges */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {(recipe.is_combo || (recipe.items && recipe.items.length > 0)) && (
-              <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold flex items-center gap-1">
-                <Layers className="w-3 h-3 text-emerald-400" />
-                Combo ({recipe.items?.length || 2} items)
-              </span>
-            )}
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 text-[11px] font-semibold text-slate-300">
+            <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-800/60">
+              <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">{totalTime} m</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-800/60">
+              <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate">{servings} serv</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-800/60">
+              <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">{calories} kcal</span>
+            </div>
+          </div>
+
+          {/* Dietary & Difficulty Badges */}
+          <div className="flex flex-wrap gap-1.5 pt-1">
             {recipe.difficulty && (
-              <span className="px-2.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-semibold capitalize">
+              <span className={`px-2.5 py-0.5 rounded-lg border text-[11px] font-bold capitalize ${difficultyColors[recipe.difficulty] || "bg-slate-900 text-slate-300 border-slate-800"}`}>
                 {recipe.difficulty}
               </span>
             )}
             {recipe.dietary_tags &&
-              recipe.dietary_tags.slice(0, 2).map((tag) => (
+              recipe.dietary_tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-0.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 rounded text-[11px] font-semibold"
+                  className="px-2.5 py-0.5 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-lg text-[11px] font-medium"
                 >
                   {tag}
                 </span>
@@ -318,26 +414,29 @@ const RecipeCard = ({ recipe, onDelete }) => {
         </div>
       </div>
 
-      {/* Footer Meta & Actions */}
-      <div className="px-6 pb-6 pt-2">
-        <div className="flex items-center justify-between text-xs text-slate-400 pb-4 border-b border-slate-800/60 mb-4">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>{totalTime} mins</span>
-          </div>
-          {(recipe.nutrition?.calories || recipe.calories) && (
-            <span>{recipe.nutrition?.calories || recipe.calories} kcal</span>
-          )}
-        </div>
-
-        <div className="flex gap-2">
+      {/* Card Actions Footer */}
+      <div className="px-5 pb-5 pt-2">
+        <div className="flex items-center gap-2 pt-3 border-t border-slate-800/80">
           <Link
             to={`/recipes/${recipe.id || recipe._id}`}
-            className="flex-1 bg-slate-900 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 border border-slate-800 text-center py-2.5 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5"
+            className="flex-1 bg-linear-to-r from-emerald-500/15 via-teal-500/15 to-emerald-600/15 hover:from-emerald-500 hover:to-teal-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/30 hover:border-transparent py-2.5 px-3 rounded-xl font-extrabold transition-all text-xs flex items-center justify-center gap-1.5 shadow-md group/btn"
           >
-            <span>View Details</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>View Recipe</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
           </Link>
+
+          <button
+            onClick={handleShareLink}
+            className={`px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+              copied
+                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
+            }`}
+            title="Copy Public Share Link"
+          >
+            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+          </button>
+
           <button
             onClick={() => onDelete(recipe.id || recipe._id)}
             className="px-3 py-2.5 bg-slate-900 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl transition-all cursor-pointer"
@@ -350,6 +449,7 @@ const RecipeCard = ({ recipe, onDelete }) => {
     </div>
   );
 };
+
 
 const DIETARY_OPTIONS = [
   "Non-Vegetarian",

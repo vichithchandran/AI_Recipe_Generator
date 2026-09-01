@@ -102,3 +102,120 @@
 .animate-pulse-slow {
   animation: pulseGlow 4s infinite ease-in-out;
 }
+
+/* Print Media Styles & Utilities */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  /* 1. Hide screen-only interactive UI controls */
+  .no-print, nav, header, button, footer, .no-print * {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* 2. Global background & height resets */
+  html, body, #root, main, div, section, article {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 3. Universal text color & gradient reset - FORCE ALL text elements to dark charcoal */
+  *, *::before, *::after {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Ensure SVG icons are dark and crisp */
+  svg {
+    stroke: #0f172a !important;
+    fill: none !important;
+  }
+
+  /* Preserve green accents on headers/icons */
+  .text-emerald-400, .text-emerald-500, .text-emerald-600, .text-emerald-700 {
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+  }
+  svg.text-emerald-400, svg.text-emerald-500, svg.text-emerald-600 {
+    stroke: #047857 !important;
+  }
+
+  /* 4. Glass Panel & Card overrides */
+  .glass-panel {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    margin-bottom: 1rem !important;
+    padding: 1.25rem !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 5. Layout Grid & Container Width overrides */
+  .max-w-6xl, .max-w-7xl, .container, .max-w-2xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* 6. Page Split / Break management */
+  li, tr, label, .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Checkboxes */
+  input[type="checkbox"] {
+    display: inline-block !important;
+    accent-color: #0f172a !important;
+  }
+}
+
+
