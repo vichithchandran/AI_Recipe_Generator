@@ -101,7 +101,7 @@ const recipeSchema = new mongoose.Schema(
     cooking_tips: [{ type: String }],
     is_public: {
       type: Boolean,
-      default: true,
+      default: false,
     },
   },
   { timestamps: true }

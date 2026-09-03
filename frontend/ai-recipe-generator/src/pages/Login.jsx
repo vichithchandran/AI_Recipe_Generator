@@ -1,4 +1,4 @@
-import { Mail, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Sparkles, FlaskConical } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
@@ -10,7 +10,8 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -27,6 +28,21 @@ const Login = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleDemoLogin = async () => {
+    setDemoLoading(true);
+
+    const result = await demoLogin();
+
+    if (result.success) {
+      toast.success("Demo account ready — explore away!");
+      navigate("/dashboard");
+    } else {
+      toast.error(result.message);
+    }
+
+    setDemoLoading(false);
   };
 
   return (
@@ -131,6 +147,22 @@ const Login = () => {
                 )}
               </button>
             </form>
+
+            {/* Demo Shortcut */}
+            <div className="mt-5 pt-4 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={demoLoading || loading}
+                className="w-full bg-slate-900 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 hover:text-amber-200 font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+              >
+                <FlaskConical className="w-4 h-4" />
+                <span>{demoLoading ? "Preparing demo account..." : "Try Demo — no sign-up needed"}</span>
+              </button>
+              <p className="text-center text-[11px] text-slate-500 mt-2 leading-relaxed">
+                Explore a sample kitchen with recipes, pantry and meal plans already filled in.
+              </p>
+            </div>
 
             {/* Sign Up Link */}
             <p className="text-center text-xs text-slate-400 mt-5 pt-4 border-t border-slate-800/80">

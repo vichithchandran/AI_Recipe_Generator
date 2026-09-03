@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import DemoBanner from "./DemoBanner";
 
 const Navbar = () => {
   const location = useLocation();
@@ -168,6 +169,8 @@ const Navbar = () => {
 
         </div>
       </div>
+
+      <DemoBanner />
     </header>
   );
 };

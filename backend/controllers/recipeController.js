@@ -3,60 +3,36 @@ import PantryItem from '../models/PantryItem.js';
 import ApiError from '../utils/apiError.js';
 import { generateRecipeFromAI, fetchIngredientsFromAI, calculateNutritionFromAI } from '../services/aiService.js';
 
-// Helper to deduplicate recipes in MongoDB and purge test recipes
-const deduplicateRecipes = async (recipeList) => {
-  try {
-    // 1. Purge any test/sample/demo recipes directly from MongoDB
-    await Recipe.deleteMany({
-      name: { $regex: /test|sample|demo/i },
-    });
-  } catch (e) {
-    console.error('Test recipe cleanup error:', e);
-  }
-
+/**
+ * Collapses same-named recipes belonging to the same owner for display,
+ * preferring the copy that has an image. Read-only: this runs inside GET
+ * handlers, so it must never write to or delete from the database.
+ */
+const deduplicateRecipes = (recipeList) => {
   if (!Array.isArray(recipeList) || recipeList.length === 0) return [];
+  if (recipeList.length === 1) return recipeList;
 
-  // Filter out any deleted test recipes from memory
-  const cleanList = recipeList.filter((recipe) => {
-    const nameStr = String(recipe.name || '').toLowerCase();
-    return (
-      !nameStr.includes('test') &&
-      !nameStr.includes('sample') &&
-      !nameStr.includes('demo')
-    );
-  });
-
-  if (cleanList.length <= 1) return cleanList;
-
-  // 2. Deduplicate remaining recipes (keeps the one with image_url and deletes duplicates)
   const grouped = new Map();
-  const idsToDelete = [];
 
-  for (const recipe of cleanList) {
-    const key = String(recipe.name || '').toLowerCase().trim();
-    if (!key) continue;
+  for (const recipe of recipeList) {
+    const name = String(recipe.name || '').toLowerCase().trim();
+    if (!name) continue;
 
-    if (!grouped.has(key)) {
+    // Key on owner too, so two users may each keep a recipe of the same name
+    const ownerId = recipe.user?._id || recipe.user;
+    const key = `${String(ownerId || '')}|${name}`;
+
+    const existing = grouped.get(key);
+    if (!existing) {
       grouped.set(key, recipe);
-    } else {
-      const existing = grouped.get(key);
-      const incomingHasImage = !!(recipe.image_url || recipe.imageUrl);
-      const existingHasImage = !!(existing.image_url || existing.imageUrl);
-
-      if (incomingHasImage && !existingHasImage) {
-        idsToDelete.push(existing._id);
-        grouped.set(key, recipe);
-      } else {
-        idsToDelete.push(recipe._id);
-      }
+      continue;
     }
-  }
 
-  if (idsToDelete.length > 0) {
-    try {
-      await Recipe.deleteMany({ _id: { $in: idsToDelete } });
-    } catch (e) {
-      console.error('Deduplication cleanup error:', e);
+    const incomingHasImage = !!(recipe.image_url || recipe.imageUrl);
+    const existingHasImage = !!(existing.image_url || existing.imageUrl);
+
+    if (incomingHasImage && !existingHasImage) {
+      grouped.set(key, recipe);
     }
   }
 
@@ -96,7 +72,7 @@ export const getRecipes = async (req, res, next) => {
     }
 
     const rawRecipes = await recipeQuery;
-    const recipes = await deduplicateRecipes(rawRecipes);
+    const recipes = deduplicateRecipes(rawRecipes);
 
     res.status(200).json({
       success: true,
@@ -114,8 +90,8 @@ export const getRecipes = async (req, res, next) => {
 export const getRecipeById = async (req, res, next) => {
   try {
     const query = req.user
-      ? { _id: req.params.id, $or: [{ user: req.user._id }, { is_public: { $ne: false } }] }
-      : { _id: req.params.id, is_public: { $ne: false } };
+      ? { _id: req.params.id, $or: [{ user: req.user._id }, { is_public: true }] }
+      : { _id: req.params.id, is_public: true };
 
     const recipe = await Recipe.findOne(query);
 
@@ -335,7 +311,7 @@ export const togglePublicStatus = async (req, res, next) => {
       return next(new ApiError('Recipe not found', 404));
     }
 
-    recipe.is_public = recipe.is_public === false ? true : false;
+    recipe.is_public = !recipe.is_public;
     await recipe.save();
 
     res.status(200).json({
@@ -355,7 +331,7 @@ export const getPublicRecipes = async (req, res, next) => {
   try {
     const { search, cuisine, difficulty, limit } = req.query;
 
-    const query = { is_public: { $ne: false } };
+    const query = { is_public: true };
 
     if (search) {
       query.$or = [
@@ -372,14 +348,14 @@ export const getPublicRecipes = async (req, res, next) => {
       query.difficulty = difficulty;
     }
 
-    let recipeQuery = Recipe.find(query).populate('user', 'name email').sort({ createdAt: -1 });
+    let recipeQuery = Recipe.find(query).populate('user', 'name').sort({ createdAt: -1 });
 
     if (limit) {
       recipeQuery = recipeQuery.limit(Number(limit));
     }
 
     const rawRecipes = await recipeQuery;
-    const recipes = await deduplicateRecipes(rawRecipes);
+    const recipes = deduplicateRecipes(rawRecipes);
 
     res.status(200).json({
 
@@ -397,7 +373,7 @@ export const getPublicRecipes = async (req, res, next) => {
 // @access  Private
 export const cloneRecipe = async (req, res, next) => {
   try {
-    const originalRecipe = await Recipe.findOne({ _id: req.params.id, is_public: { $ne: false } });
+    const originalRecipe = await Recipe.findOne({ _id: req.params.id, is_public: true });
 
 
     if (!originalRecipe) {

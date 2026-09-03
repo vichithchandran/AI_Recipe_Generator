@@ -24,6 +24,17 @@ const userSchema = new mongoose.Schema(
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    // Marks the shared portfolio demo account. Its data is re-seeded
+    // periodically and account-level changes are blocked.
+    is_demo: {
+      type: Boolean,
+      default: false,
+    },
+    // When this demo account's data was last re-seeded.
+    demo_reset_at: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

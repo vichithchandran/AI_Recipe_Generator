@@ -114,6 +114,16 @@
     display: none !important;
   }
 
+  /* 1b. Hide fixed overlays — toast containers and modal shells.
+     These are transparent on screen, but the white-background reset in
+     section 2 below repaints every div opaque, which turns a full-viewport
+     overlay into a blank sheet stacked over the first printed page. */
+  .fixed,
+  [style*="position: fixed"],
+  [style*="position:fixed"] {
+    display: none !important;
+  }
+
   .print-only {
     display: block !important;
   }

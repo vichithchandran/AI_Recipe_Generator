@@ -5,6 +5,16 @@ import { generateToken } from '../utils/generateToken.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { env } from '../config/env.js';
 import crypto from 'crypto';
+import { ensureDemoUser, refreshDemoDataIfStale, DEMO_RESET_MINUTES } from '../services/demoService.js';
+
+/** Shape the user object sent to the client. */
+const publicUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  created_at: user.createdAt,
+  is_demo: !!user.is_demo,
+});
 
 // @desc    Register a new user
 // @route   POST /api/auth/signup
@@ -34,12 +44,7 @@ export const signup = async (req, res, next) => {
     res.status(201).json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        created_at: user.createdAt,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     next(error);
@@ -68,12 +73,34 @@ export const login = async (req, res, next) => {
     res.status(200).json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        created_at: user.createdAt,
+      user: publicUser(user),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Sign in to the shared portfolio demo account
+// @route   POST /api/auth/demo-login
+// @access  Public
+export const demoLogin = async (req, res, next) => {
+  try {
+    const { user, seeded } = await ensureDemoUser();
+
+    // Give each visitor a freshly populated account once the window has passed.
+    const reseeded = seeded ? false : await refreshDemoDataIfStale(user);
+
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: publicUser(user),
+      demo: {
+        reset_minutes: DEMO_RESET_MINUTES,
+        data_refreshed: seeded || reseeded,
       },
+      message: 'Signed in to the demo account',
     });
   } catch (error) {
     next(error);
@@ -87,12 +114,7 @@ export const getMe = async (req, res, next) => {
   try {
     res.status(200).json({
       success: true,
-      user: {
-        id: req.user._id,
-        name: req.user.name,
-        email: req.user.email,
-        created_at: req.user.createdAt,
-      },
+      user: publicUser(req.user),
     });
   } catch (error) {
     next(error);
@@ -217,12 +239,7 @@ export const resetPassword = async (req, res, next) => {
       success: true,
       message: 'Password reset successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        created_at: user.createdAt,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     next(error);

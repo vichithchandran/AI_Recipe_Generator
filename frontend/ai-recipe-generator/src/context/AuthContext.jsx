@@ -57,6 +57,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const demoLogin = async () => {
+    try {
+      const data = await authService.demoLogin();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        // A fresh demo session should always see the banner.
+        localStorage.removeItem("demoBannerDismissed");
+        setUser(data.user);
+        return { success: true, demo: data.demo };
+      }
+      return { success: false, message: data.message || "Could not start the demo" };
+    } catch (error) {
+      const message = error.response?.data?.message || "Could not start the demo. Please try again.";
+      return { success: false, message };
+    }
+  };
+
   const register = async (name, email, password) => {
     try {
       const data = await authService.signup(name, email, password);
@@ -111,11 +128,13 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    demoLogin,
     register,
     logout,
     forgotPassword,
     resetPassword,
     isAuthenticated: !!user,
+    isDemo: !!user?.is_demo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

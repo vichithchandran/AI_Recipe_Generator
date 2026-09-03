@@ -2,6 +2,16 @@ import User from '../models/User.js';
 import UserPreference from '../models/UserPreference.js';
 import ApiError from '../utils/apiError.js';
 
+/**
+ * The demo account is shared by every portfolio visitor. Its recipes, pantry
+ * and plans stay fully editable so the app can actually be tried out, but
+ * account-level changes are refused so it cannot be locked or removed.
+ */
+const blockOnDemo = (req, action) =>
+  req.user?.is_demo
+    ? new ApiError(`The demo account cannot ${action}. Create a free account to use this.`, 403)
+    : null;
+
 // @desc    Get user profile
 // @route   GET /api/users/profile
 // @access  Private
@@ -49,6 +59,9 @@ export const updateProfile = async (req, res, next) => {
 // @access  Private
 export const changePassword = async (req, res, next) => {
   try {
+    const denied = blockOnDemo(req, 'change its password');
+    if (denied) return next(denied);
+
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -139,6 +152,9 @@ export const updatePreferences = async (req, res, next) => {
 // @access  Private
 export const deleteAccount = async (req, res, next) => {
   try {
+    const denied = blockOnDemo(req, 'be deleted');
+    if (denied) return next(denied);
+
     const { confirmation } = req.body;
 
     if (confirmation !== 'DELETE') {

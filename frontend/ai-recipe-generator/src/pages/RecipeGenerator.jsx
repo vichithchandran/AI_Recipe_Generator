@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChefHat, Sparkles, Plus, X, Clock, Users, Bookmark, CheckCircle, Wand2, FileText, ListPlus, Trash2, Coffee, UtensilsCrossed, Apple, Moon, ShoppingBag, Printer } from "lucide-react";
 import Navbar from "../components/Navbar";
 
@@ -77,6 +78,7 @@ const MEAL_TYPE_COLORS = {
 };
 
 const RecipeGenerator = () => {
+  const navigate = useNavigate();
   const [ingredients, setIngredients] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [inputMode, setInputMode] = useState("quick"); // 'quick' | 'bulk'
@@ -286,7 +288,9 @@ const RecipeGenerator = () => {
       const res = await recipeService.createRecipe(recipePayload);
       if (res.success) {
         setIsSaved(true);
-        toast.success("Recipe saved to your collection!");
+        toast.success(res.message || "Recipe saved to your collection!");
+        // Take the user straight to the saved recipe in their collection.
+        navigate("/recipes");
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save recipe");

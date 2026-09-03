@@ -104,6 +104,7 @@ function App() {
       {/* Dark Glassmorphism Toast Notifications */}
       <Toaster
         position="top-right"
+        containerClassName="no-print"
         toastOptions={{
           duration: 3500,
           style: {

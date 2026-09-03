@@ -3,6 +3,71 @@ import { env } from '../config/env.js';
 import ApiError from '../utils/apiError.js';
 
 /**
+ * Chat models to try on Groq, in preference order. Groq retires models
+ * regularly, so we walk the list instead of pinning one: a decommissioned
+ * model answers 404 and we fall through to the next.
+ * Current inventory: https://console.groq.com/docs/models
+ */
+const GROQ_MODELS = [
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+  'openai/gpt-oss-20b',
+];
+
+const getGroqKey = () =>
+  (env.LLM_API_KEY && env.LLM_API_KEY.startsWith('gsk_')) ? env.LLM_API_KEY : process.env.GROQ_API_KEY;
+
+/**
+ * Asks Groq for a single JSON object, trying each model in turn.
+ * Returns the parsed object, or null if every model failed — failures are
+ * logged with the API's own error text so the cause is never silent.
+ */
+const callGroqJSON = async (systemPrompt, userPrompt, label = 'request') => {
+  const groqKey = getGroqKey();
+  if (!groqKey) return null;
+
+  for (const model of GROQ_MODELS) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        console.warn(`Groq ${label} rejected by '${model}': HTTP ${response.status} ${detail.slice(0, 300)}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) {
+        console.warn(`Groq ${label} returned an empty message from '${model}'`);
+        continue;
+      }
+
+      console.log(`⚡ Groq ${label} answered by ${model}`);
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn(`Groq ${label} with model '${model}' failed:`, e.message);
+    }
+  }
+
+  return null;
+};
+
+/**
  * Post-processor validating and sanitizing ALL 7 dietary tags:
  * 1. Non-Vegetarian
  * 2. Vegetarian
@@ -166,36 +231,13 @@ CRITICAL RULES:
 `;
 
   // 1. Try Groq API
-  const groqKey = (env.LLM_API_KEY && env.LLM_API_KEY.startsWith('gsk_')) ? env.LLM_API_KEY : process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: 'You are an executive chef. Output ONLY valid single JSON object.' },
-            { role: 'user', content: promptText }
-          ],
-          response_format: { type: 'json_object' }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        const parsed = JSON.parse(content);
-        if (parsed && parsed.ingredients && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
-          return parsed.ingredients;
-        }
-      }
-    } catch (e) {
-      console.warn('Groq fetch ingredients failed:', e.message);
-    }
+  const groqParsed = await callGroqJSON(
+    'You are an executive chef. Output ONLY valid single JSON object.',
+    promptText,
+    'ingredient fetch'
+  );
+  if (groqParsed && Array.isArray(groqParsed.ingredients) && groqParsed.ingredients.length > 0) {
+    return groqParsed.ingredients;
   }
 
   // 2. Try Gemini AI if configured
@@ -284,36 +326,13 @@ Respond STRICTLY with a single valid JSON object following this exact schema:
 `;
 
   // 1. Try Groq API
-  const groqKey = (env.LLM_API_KEY && env.LLM_API_KEY.startsWith('gsk_')) ? env.LLM_API_KEY : process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: 'You are an executive nutritionist. Output ONLY valid single JSON object.' },
-            { role: 'user', content: promptText }
-          ],
-          response_format: { type: 'json_object' }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        const parsed = JSON.parse(content);
-        if (parsed && typeof parsed.calories === 'number') {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Groq nutrition calculation failed:', e.message);
-    }
+  const groqNutrition = await callGroqJSON(
+    'You are an executive nutritionist. Output ONLY valid single JSON object.',
+    promptText,
+    'nutrition calculation'
+  );
+  if (groqNutrition && typeof groqNutrition.calories === 'number') {
+    return groqNutrition;
   }
 
   // 2. Try Free Open AI Engine
@@ -451,35 +470,13 @@ Respond STRICTLY with a single valid JSON object following this exact structure:
 `;
 
   // 1. Try Groq API if key starts with 'gsk_' or GROQ_API_KEY is configured
-  const groqKey = (env.LLM_API_KEY && env.LLM_API_KEY.startsWith('gsk_')) ? env.LLM_API_KEY : process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: 'You are an executive chef. Output ONLY valid single JSON object.' },
-            { role: 'user', content: prompt }
-          ],
-          response_format: { type: 'json_object' }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        const parsedRecipe = JSON.parse(content);
-        console.log('⚡ AI Recipe successfully generated using Groq (Llama 3.3 70B)!');
-        return postProcessRecipe(parsedRecipe, dietaryRestrictions);
-      }
-    } catch (e) {
-      console.warn('Groq API call failed:', e.message);
-    }
+  const groqRecipe = await callGroqJSON(
+    'You are an executive chef. Output ONLY valid single JSON object.',
+    prompt,
+    'recipe generation'
+  );
+  if (groqRecipe && groqRecipe.name && groqRecipe.ingredients) {
+    return postProcessRecipe(groqRecipe, dietaryRestrictions);
   }
 
   // 2. Try Gemini AI if configured with valid key (starts with AIzaSy)

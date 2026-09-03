@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Sparkles,
   ChefHat,
@@ -18,14 +18,35 @@ import {
   User,
   ShieldCheck,
   Zap,
+  FlaskConical,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import DietSymbol from "../components/DietSymbol";
 import { recipeService } from "../services/recipeService";
+import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 const LandingPage = () => {
   const [publicRecipes, setPublicRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const { demoLogin } = useAuth();
+  const navigate = useNavigate();
+
+  const handleDemoLogin = async () => {
+    setDemoLoading(true);
+
+    const result = await demoLogin();
+
+    if (result.success) {
+      toast.success("Demo account ready — explore away!");
+      navigate("/dashboard");
+    } else {
+      toast.error(result.message);
+    }
+
+    setDemoLoading(false);
+  };
 
   useEffect(() => {
     const fetchFeatured = async () => {
@@ -76,6 +97,16 @@ const LandingPage = () => {
               <span>Explore Community Recipes</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
+
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={demoLoading}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 border border-amber-500/40 hover:border-amber-400/70 text-amber-300 hover:text-amber-200 font-bold px-8 py-4 rounded-2xl hover:bg-slate-800 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+            >
+              <FlaskConical className="w-4 h-4" />
+              <span>{demoLoading ? "Preparing demo..." : "Try the Live Demo"}</span>
+            </button>
 
             <Link
               to="/generate"
