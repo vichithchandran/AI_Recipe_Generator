@@ -6,6 +6,9 @@
 .env.production
 .env.*
 
+# ...but the template belongs in the repo
+!.env.example
+
 # ============================
 # Node.js Dependencies
 # ============================
